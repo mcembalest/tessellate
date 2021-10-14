@@ -9,7 +9,8 @@ RED, BLUE, EMPTY, OUT_OF_PLAY = 0, 1, 2, 3
 class GameState:
 	# Class to handle the game logic
 
-	def __init__(self, against_computer = False):
+	#def __init__(self, against_computer = False):
+	def __init__(self):
 		# the game board is a 10x10 matrix
 		# possible values for entries in the game board are EMPTY, RED, BLUE, OUT_OF_PLAY
 		self.board = np.array([[EMPTY for i in range(10)] for j in range(10)])

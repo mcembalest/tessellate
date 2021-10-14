@@ -1,12 +1,8 @@
 import tkinter as tk
 import time
-from tessellate_game import GameState, RED, BLUE
-from tessellate_train import get_action
-import tensorflow as tf
-from tensorflow import keras
 import numpy as np
 
-
+from tessellate_game import GameState, RED, BLUE
 
 PREVIEW, NO_PREVIEW = 0, 1
 
@@ -24,7 +20,7 @@ sq_size = int(window_size/num_squares)
 class GameWindow(tk.Tk):
 	# Class to handle the tkinter logic of drawing shapes and handling the mouse behavior
 	
-	def __init__(self, against_computer = False):
+	def __init__(self):
 		#initializes the GameWindow class (inheriting from the tkinter base class)
 		tk.Tk.__init__(self)
 
@@ -39,14 +35,7 @@ class GameWindow(tk.Tk):
 		self.current_display = None
 
 		# stores the board information as defined by the GameState class above
-		self.game_state = GameState(against_computer)
-
-		if against_computer:
-			self.p2model = keras.models.load_model('p2model', compile = False)
-
-		self.against_computer = against_computer
-		self.show_saliency = show_saliency
-
+		self.game_state = GameState()
 
 		self.draw_base()
 		
@@ -114,45 +103,7 @@ class GameWindow(tk.Tk):
 			red_score, blue_score = self.game_state.get_score()
 
 			#format current score onto the window
-			self.score_label['text'] = "red : {}     blue : {}".format(red_score, blue_score)
-
-
-			# handle computer playing a turn if playing against the computer
-
-			if self.against_computer:
-
-
-
-				# wait a few seconds
-				time.sleep(.5)
-
-				#observation = np.array(self.game_state.board)
-				epsilon = 0.9
-				action = get_action(self.game_state,self.p2model,0)
-				action = int(action)
-				opp_row, opp_col = action//10, action%10
-				if not self.game_state.playable(opp_row, opp_col):
-					raise ValueError('PLAYER 2 PICKED AN ILLEGAL MOVE')
-
-				# # opponent makes a move
-				# opp_row, opp_col = self.game_state.find_best_opponent_move()
-
-				self.draw_tile(opp_row, opp_col)
-
-				# update the information in the GameState object
-				self.game_state.new_move(opp_row, opp_col)
-
-				#get the current score
-				red_score, blue_score = self.game_state.get_score()
-
-				#format current score onto the window
-				self.score_label['text'] = "red : {}     blue : {}".format(red_score, blue_score)
-
-			self.draw_saliency()
-
-
-							#self.canvas.create_oval(60,60,210,210)
-					
+			self.score_label['text'] = "red : {}     blue : {}".format(red_score, blue_score)	
 
 	def clickable_coord(self, x, y):
 		# Returns the grid coordinate where the user clicked, but only if the row is clickable
@@ -179,7 +130,6 @@ class GameWindow(tk.Tk):
 
 					return (row, col)
 	
-	
 	def draw_base(self):
 		# draws underlying board
 
@@ -199,24 +149,3 @@ class GameWindow(tk.Tk):
 
 
 		return self.canvas.create_polygon(points, outline = bg_color, fill = color_map[self.game_state.turn][preview], tag = bg_tag)
-
-	# def draw_saliency(self):
-	# 	if self.show_saliency:
-	# 		print('drawing saliency')
-	# 		logits = self.p2model.predict(self.game_state.board.reshape(1,10,10,1))
-	# 		prob_weights = tf.nn.softmax(logits).numpy().flatten()
-	# 		playable_spots = np.array([self.game_state.legal_moves[(i//10, i%10)] for i in range(100)])
-	# 		masked_prob_weights = (prob_weights * playable_spots).reshape(10,10)
-	# 		max_val = np.max(masked_prob_weights)
-
-	# 		for row in range(10):
-	# 			for col in range(10):
-	# 				c_ = masked_prob_weights[row, col]
-	# 				x, xx, y, yy = col//2, col % 2, row//2, row % 2
-	# 				points = [p*sq_size for p in [x + xx, y + yy, x + 1 - xx, y + yy, x + xx, y + 1 - yy]]
-
-	# 				circ_x = np.mean([points[0], points[2], points[4]])
-	# 				circ_y = np.mean([points[1], points[3], points[5]])
-	# 				r = 50
-	# 				self.canvas.create_oval(circ_x - r, circ_y - r, circ_x + r, circ_y + r, fill = 'green', alpha = c_/max_val)
-
