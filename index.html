@@ -203,9 +203,16 @@
      </div>
 
     <div id="controls">
-        <button id="new-game-btn">New Game</button>
+        <button id="new-game-btn">New Game (Local)</button>
         <button id="rules-btn">Rules</button>
+        <button id="play-online-btn">Play Online</button>
     </div>
+    <div id="online-options" style="display:none; margin-top:10px; text-align: center; padding: 10px; background-color: var(--header-color); border-radius: 8px;">
+        <button id="create-game-btn" style="margin-right: 10px; padding: 10px 15px; font-size: clamp(13px, 2.5vw, 16px);">Create New Game</button>
+        <input type="text" id="session-id-input" placeholder="Enter Session ID" style="padding: 10px; margin-right: 10px; border-radius: 5px; border: 1px solid #ccc; font-size: clamp(13px, 2.5vw, 16px);">
+        <button id="join-game-btn" style="padding: 10px 15px; font-size: clamp(13px, 2.5vw, 16px);">Join Game</button>
+    </div>
+    <div id="server-message-display" style="margin-top: 15px; text-align: center; font-weight: bold; min-height: 20px; padding: 5px; color: var(--text-color);"></div>
 
      
     <footer>
@@ -232,10 +239,17 @@
         };
         let board = [];
         let currentTurn = RED;
-        let scores = { [RED]: 1, [BLUE]: 1 };
+        let scores = { [RED]: 1, [BLUE]: 1 }; // Scores for the Tessellate game are products
         let gameOver = false;
         let hoverPosition = null; 
         let placedTilesCount = 0;
+
+        // Multiplayer variables
+        let socket = null;
+        let sessionId = null;
+        let playerId = null; // 0 for Red, 1 for Blue. Server will assign.
+        let isMultiplayerGame = false;
+        let serverMessageDisplay = null; // Will be initialized in DOMContentLoaded. Used for server msgs.
 
         function initializeBoard() {
             board = Array(LOGICAL_GRID_SIZE).fill(null).map(() =>
@@ -427,29 +441,58 @@
              } else {
                  message = `Game Over! It's a tie: ${redScore.toLocaleString()}`;
              }
-             console.log(message);
-         }
-         function updateTurnIndicator() {
-             const turnIndicator = document.getElementById('turn-indicator');
-             if (gameOver) {
-                 const redScore = scores[RED];
-                 const blueScore = scores[BLUE];
-                 let winnerText = "It's a Tie!";
-                 let winnerClass = "";
-                 if (typeof redScore !== 'number' || typeof blueScore !== 'number' || isNaN(redScore) || isNaN(blueScore)) {
-                     winnerText = "Game Over (Score Error)";
-                 } else if (redScore > blueScore) {
-                    winnerText = "Red Wins!"; winnerClass = "red-text";
-                 } else if (blueScore > redScore) {
-                    winnerText = "Blue Wins!"; winnerClass = "blue-text";
-                 }
-                 turnIndicator.innerHTML = `Game Over - <span class="${winnerClass}">${winnerText}</span>`;
-             } else {
-                 const player = currentTurn === RED ? 'Red' : 'Blue';
-                 const playerClass = currentTurn === RED ? 'red-text' : 'blue-text';
-                 turnIndicator.innerHTML = `Current Turn: <span class="${playerClass}">${player}</span>`;
+             console.log(message); // Original log for local game over
+             // For multiplayer, serverMessageDisplay usually shows the definitive game over message.
+             // This function is primarily for local game over scenarios.
+             if (!isMultiplayerGame && serverMessageDisplay) { // Check serverMessageDisplay exists
+                // If we want to also update turnIndicator for local games from here (it's also done in checkGameOver->updateTurnIndicator)
+                // serverMessageDisplay.textContent = message; // This might be too verbose for local
              }
          }
+
+         function updateTurnIndicator() {
+            const turnIndicatorElement = document.getElementById('turn-indicator');
+            if (!turnIndicatorElement) return; 
+
+            if (gameOver) {
+                let finalMessage = "Game Over - ";
+                const redFinalScore = (typeof scores[RED] === 'number' && !isNaN(scores[RED])) ? scores[RED].toLocaleString() : 'N/A';
+                const blueFinalScore = (typeof scores[BLUE] === 'number' && !isNaN(scores[BLUE])) ? scores[BLUE].toLocaleString() : 'N/A';
+
+                if (isMultiplayerGame) { 
+                    // Use server message if available and specific, otherwise determine from scores
+                    if (serverMessageDisplay && (serverMessageDisplay.textContent.includes("wins") || serverMessageDisplay.textContent.includes("Tie") || serverMessageDisplay.textContent.includes("disconnected") || serverMessageDisplay.textContent.includes("lost"))) {
+                        finalMessage = serverMessageDisplay.textContent; // Use the specific message from server
+                    } else { // Fallback for multiplayer if serverMessageDisplay is not specific enough yet
+                        if (scores[RED] > scores[BLUE]) finalMessage += `<span class="red-text">Red Wins!</span>`;
+                        else if (scores[BLUE] > scores[RED]) finalMessage += `<span class="blue-text">Blue Wins!</span>`;
+                        else finalMessage += "It's a Tie!";
+                    }
+                } else { // Local game: determine winner from scores
+                    if (scores[RED] > scores[BLUE]) finalMessage += `<span class="red-text">Red Wins!</span> (${redFinalScore} to ${blueFinalScore})`;
+                    else if (scores[BLUE] > scores[RED]) finalMessage += `<span class="blue-text">Blue Wins!</span> (${blueFinalScore} to ${redFinalScore})`;
+                    else finalMessage += `It's a Tie! (${redFinalScore} each)`;
+                }
+                turnIndicatorElement.innerHTML = finalMessage;
+                canvas.style.cursor = 'default';
+            } else if (isMultiplayerGame) {
+                const playerClientColor = playerId === RED ? "Red" : "Blue"; // The color this client is playing as
+                const currentTurnColor = currentTurn === RED ? "Red" : "Blue"; // The color of the player whose turn it is
+                const turnPlayerClass = currentTurn === RED ? "red-text" : "blue-text";
+                if (playerId === currentTurn) {
+                    turnIndicatorElement.innerHTML = `Your Turn (<span class="${turnPlayerClass}">${playerClientColor}</span>)`;
+                    canvas.style.cursor = 'pointer';
+                } else {
+                    turnIndicatorElement.innerHTML = `Opponent's Turn (<span class="${turnPlayerClass}">${currentTurnColor}</span>)`;
+                    canvas.style.cursor = 'not-allowed';
+                }
+            } else { // Local game
+                const player = currentTurn === RED ? 'Red' : 'Blue';
+                const playerClass = currentTurn === RED ? 'red-text' : 'blue-text';
+                turnIndicatorElement.innerHTML = `Current Turn: <span class="${playerClass}">${player}</span>`;
+                canvas.style.cursor = 'pointer';
+            }
+        }
          function updateScoreDisplay() {
              const scoreDisplay = document.getElementById('score-display');
              const redScoreStr = (typeof scores[RED] === 'number' && !isNaN(scores[RED])) ? scores[RED].toLocaleString() : 'Error';
@@ -475,41 +518,74 @@
          }
          function getClickableCorner(x, y) {
              if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return null;
-             const r = Math.floor(y / logicalCellSize);
-             const c = Math.floor(x / logicalCellSize);
-             const clampedR = Math.max(0, Math.min(LOGICAL_GRID_SIZE - 1, r));
-             const clampedC = Math.max(0, Math.min(LOGICAL_GRID_SIZE - 1, c));
-             if (isPlayable(clampedR, clampedC)) {
-                 return { r: clampedR, c: clampedC };
+             // Return logical grid coordinates, clamped to be within the board
+             const r_logical = Math.max(0, Math.min(LOGICAL_GRID_SIZE - 1, Math.floor(y / logicalCellSize)));
+             const c_logical = Math.max(0, Math.min(LOGICAL_GRID_SIZE - 1, Math.floor(x / logicalCellSize)));
+             
+             // isPlayable checks if the specific logical corner is valid (EMPTY and within bounds)
+             if (isPlayable(r_logical, c_logical)) { 
+                 return { r: r_logical, c: c_logical };
              }
-
              return null; 
          }
-         function handleClick(event) {
-             if (gameOver) return;
-             const { x, y } = getCoordsFromEvent(event);
-             const clickResult = getClickableCorner(x, y);
-             if (clickResult) {
-                 const { r, c } = clickResult;
-                 console.log(`Click -> Playable Corner (${r}, ${c})`);
-                 const moveSuccessful = addTile(r, c);
 
-                 if (moveSuccessful) {
-                     calculateScore();     // Update score based on new board
-                     updateScoreDisplay(); // Show new score
-                     currentTurn = 1 - currentTurn; // Switch turn
-                     updateTurnIndicator(); // Show whose turn it is now
-                     checkGameOver();    // Check if the board is full
-                     drawBoard();        // Redraw everything
-                     if (hoverPosition && hoverPosition.r === r && hoverPosition.c === c) {
-                        hoverPosition = null; // Clear hover if we just played there
-                        canvas.style.cursor = 'default';
-                     }
-                 }
-             } else {
-                 console.log("Click is not on a playable corner.");
-             }
-         }
+         function handleClick(event) {
+            if (isMultiplayerGame) {
+                if (gameOver || !socket || socket.readyState !== WebSocket.OPEN || playerId !== currentTurn) {
+                    if (playerId !== currentTurn && !gameOver && serverMessageDisplay) {
+                        serverMessageDisplay.textContent = "Wait for your opponent's turn!";
+                    } else if (gameOver && serverMessageDisplay) {
+                        // Game over message should already be displayed by handleServerMessage or updateTurnIndicator
+                    } else if ((!socket || socket.readyState !== WebSocket.OPEN) && serverMessageDisplay) {
+                        serverMessageDisplay.textContent = "Not connected to server.";
+                    }
+                    return;
+                }
+                const { x, y } = getCoordsFromEvent(event);
+                const clickResult = getClickableCorner(x, y); 
+
+                if (clickResult) {
+                    const { r, c } = clickResult;
+                    console.log(`Multiplayer: Sending move: r=${r}, c=${c}, player_id=${playerId}, session_id=${sessionId}`);
+                    // Server's server.py expects: session_id, player_id, and move (obj with r,c) at top level of data
+                    socket.send(JSON.stringify({
+                        type: 'make_move',
+                        session_id: sessionId, 
+                        player_id: playerId,
+                        move: { r, c } 
+                    }));
+                    if(serverMessageDisplay) serverMessageDisplay.textContent = "Move sent. Waiting for server update...";
+                    // Local board/turn NOT updated here. Wait for game_update from server.
+                } else {
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = "Invalid click location or not playable.";
+                }
+
+            } else { // Local game logic (existing logic largely remains)
+                if (gameOver) return;
+                const { x, y } = getCoordsFromEvent(event);
+                const clickResult = getClickableCorner(x, y); 
+                if (clickResult) {
+                    const { r, c } = clickResult;
+                    // console.log(`Local Click -> Playable Corner (${r}, ${c})`);
+                    const moveSuccessful = addTile(r, c); // addTile handles local board update & marks adjacent
+
+                    if (moveSuccessful) {
+                        calculateScore();     
+                        updateScoreDisplay(); 
+                        currentTurn = 1 - currentTurn; // Switch turn LOCALLY
+                        updateTurnIndicator(); 
+                        checkGameOver(); // Sets gameOver, calls showGameOverMessage, updates indicators
+                        drawBoard();        
+                        if (hoverPosition && hoverPosition.r === r && hoverPosition.c === c) {
+                            hoverPosition = null; 
+                            canvas.style.cursor = 'default';
+                        }
+                    }
+                } else {
+                    // console.log("Local Click is not on a playable logical corner.");
+                }
+            }
+        }
          function handleMouseMove(event) {
              if (gameOver || !showPreview) {
                  if (hoverPosition !== null) {
@@ -537,13 +613,38 @@
                  drawBoard();
              }
          }
-        function resetGame() {
-            console.log("Resetting game (Corner Click Model)...");
-            initializeBoard();
-            updateScoreDisplay();
-            updateTurnIndicator();
-            canvas.style.cursor = 'default';
+        function resetGame() { 
+            console.log("resetGame called. Current isMultiplayerGame state:", isMultiplayerGame);
+            
+            // This function is called to reset the board, scores, turn, etc.
+            // It's used for starting a new local game, or by handleServerMessage when a new MP game is created/joined.
+            initializeBoard(); // Resets board, scores to 1, currentTurn to RED, gameOver to false, placedTilesCount
+            
+            // If isMultiplayerGame is true here, it's because a multiplayer game is starting.
+            // The serverMessageDisplay will be set by handleServerMessage.
+            // If isMultiplayerGame is false, it's a local game reset.
+            if (!isMultiplayerGame) { 
+                 if (serverMessageDisplay) serverMessageDisplay.textContent = "New local game started.";
+                 document.getElementById('new-game-btn').textContent = "New Game (Local)";
+                 const onlineOpts = document.getElementById('online-options');
+                 if(onlineOpts) onlineOpts.style.display = 'none'; 
+                
+                // Ensure online buttons are disabled if we are starting a local game and socket might be closed/null
+                const createGameBtn = document.getElementById('create-game-btn');
+                const joinGameBtn = document.getElementById('join-game-btn');
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                    if (createGameBtn) createGameBtn.disabled = true;
+                    if (joinGameBtn) joinGameBtn.disabled = true;
+                } else { // Socket is open, but it's a local game
+                    if (createGameBtn) createGameBtn.disabled = false; // Or true, if online panel is hidden
+                    if (joinGameBtn) joinGameBtn.disabled = false; // Or true
+                }
+            }
+            
+            updateScoreDisplay(); 
+            updateTurnIndicator(); 
             drawBoard();
+            canvas.style.cursor = 'pointer'; 
         }
 
         function togglePreview() {
@@ -561,33 +662,300 @@
             const rulesPanel = document.getElementById('rules-panel');
             rulesPanel.style.display = rulesPanel.style.display === 'block' ? 'none' : 'block';
         }
+
+        // WebSocket and multiplayer game functions
+        function connectWebSocket() {
+            if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+                console.log("WebSocket already connected or connecting.");
+                if (serverMessageDisplay) serverMessageDisplay.textContent = "Already connected or attempting to connect.";
+                return;
+            }
+
+            socket = new WebSocket('ws://localhost:8765');
+            if (serverMessageDisplay) serverMessageDisplay.textContent = "Connecting to server...";
+            console.log("Attempting to connect to WebSocket server...");
+
+            socket.onopen = () => {
+                console.log('WebSocket connection established.');
+                if (serverMessageDisplay) serverMessageDisplay.textContent = 'Connected to server. Choose an option above.';
+                // Enable online action buttons
+                const createGameBtn = document.getElementById('create-game-btn');
+                const joinGameBtn = document.getElementById('join-game-btn');
+                if (createGameBtn) createGameBtn.disabled = false;
+                if (joinGameBtn) joinGameBtn.disabled = false;
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log('Message from server: ', message);
+                    handleServerMessage(message); // Defined in next step
+                } catch (e) {
+                    console.error("Failed to parse server message:", event.data, e);
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = "Received an invalid message from server.";
+                }
+            };
+
+            socket.onclose = (event) => {
+                console.log(`WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason}`);
+                const wasMultiplayerGameActive = isMultiplayerGame; // Check if a game was active
+                isMultiplayerGame = false; // Reset multiplayer status
+                socket = null; 
+                
+                if (serverMessageDisplay) serverMessageDisplay.textContent = 'Disconnected. You can play locally or try "Play Online" again.';
+                
+                const onlineOptionsDiv = document.getElementById('online-options');
+                // if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'block'; // Optionally show options
+                
+                document.getElementById('new-game-btn').textContent = "New Game (Local)";
+                
+                const createGameBtn = document.getElementById('create-game-btn');
+                const joinGameBtn = document.getElementById('join-game-btn');
+                if (createGameBtn) createGameBtn.disabled = true;
+                if (joinGameBtn) joinGameBtn.disabled = true;
+
+                if (wasMultiplayerGameActive && !gameOver) { 
+                    gameOver = true; // Mark game as over due to disconnection
+                    if(serverMessageDisplay) serverMessageDisplay.textContent = "Connection lost. The online game was interrupted.";
+                }
+                updateTurnIndicator(); 
+                if (canvas) canvas.style.cursor = 'default'; 
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket error: ', error);
+                if (serverMessageDisplay) serverMessageDisplay.textContent = `Connection error. Ensure server is running. Try refreshing.`;
+                socket = null;
+            };
+        }
+
+        function initiateCreateGame() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                if (serverMessageDisplay) serverMessageDisplay.textContent = "Not connected. Click 'Play Online' and wait for connection.";
+                // Optionally, try to connect if socket is totally closed:
+                // if (!socket || socket.readyState === WebSocket.CLOSED) connectWebSocket();
+                return;
+            }
+            socket.send(JSON.stringify({ type: "create_game" }));
+            if (serverMessageDisplay) serverMessageDisplay.textContent = "Creating game... Waiting for server response.";
+        }
+
+        function initiateJoinGame(joinId) {
+            if (!joinId) {
+                if (serverMessageDisplay) serverMessageDisplay.textContent = "Session ID cannot be empty.";
+                return;
+            }
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                if (serverMessageDisplay) serverMessageDisplay.textContent = "Not connected. Click 'Play Online' and wait for connection.";
+                return;
+            }
+            // Server's server.py expects session_id at top level of data for join_game
+            socket.send(JSON.stringify({ type: "join_game", "session_id": joinId }));
+            if (serverMessageDisplay) serverMessageDisplay.textContent = `Joining game ${joinId}... Waiting for server response.`;
+        }
+
+        function handleServerMessage(message) {
+            console.log("Handling server message:", message);
+            const onlineOptionsDiv = document.getElementById('online-options');
+            if (!serverMessageDisplay) serverMessageDisplay = document.getElementById('server-message-display'); // Ensure it's initialized
+
+            switch (message.type) {
+                case 'game_created':
+                    sessionId = message.session_id;
+                    playerId = message.player_id; // Server assigns 0 for RED, 1 for BLUE
+                    isMultiplayerGame = true;
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = `Game Session ${sessionId} created! You are Player ${playerId === RED ? 'RED' : 'BLUE'}. Share ID: ${sessionId}. Waiting for opponent...`;
+                    resetGame(); // Reset local board for a fresh start, server is truth
+                    updateTurnIndicator(); // Reflect multiplayer status
+                    if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'none';
+                    document.getElementById('new-game-btn').textContent = "Leave Game";
+                    break;
+                case 'player_joined': // For the player who just joined
+                    sessionId = message.session_id;
+                    playerId = message.player_id;
+                    isMultiplayerGame = true;
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = `Successfully joined game ${sessionId}. You are Player ${playerId === RED ? 'RED' : 'BLUE'}. Waiting for game data...`;
+                    resetGame(); 
+                    updateTurnIndicator();
+                    if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'none';
+                    document.getElementById('new-game-btn').textContent = "Leave Game";
+                    break;
+                case 'opponent_joined': // For the player who created the game
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = "Opponent joined! Game starting. Server will send initial state.";
+                    // Server will typically follow up with a 'game_update'
+                    break;
+                case 'game_update':
+                    board = message.board;
+                    currentTurn = message.current_turn;
+                    // Server scores are { "0": score, "1": score }
+                    // Tessellate scores are products, ensure they are numbers
+                    scores[RED] = Number(message.scores[RED.toString()]); 
+                    scores[BLUE] = Number(message.scores[BLUE.toString()]);
+                    gameOver = message.game_over_flag;
+                    isMultiplayerGame = true; 
+
+                    drawBoard();
+                    updateScoreDisplay();
+                    updateTurnIndicator(); 
+                    
+                    if (!gameOver) {
+                        if (serverMessageDisplay) serverMessageDisplay.textContent = isMultiplayerGame ? `Game ${sessionId} in progress.` : "Local game.";
+                    } else {
+                         // If game_update indicates game over, but no specific winner yet in this message
+                        if (!message.winner) { 
+                            showGameOverMessage(); // Uses local scores which should now be updated from server
+                        }
+                    }
+                    break;
+                case 'game_over': 
+                    gameOver = true;
+                    isMultiplayerGame = true; 
+                    if(message.scores) { // Update scores one last time if provided
+                        scores[RED] = Number(message.scores[RED.toString()]);
+                        scores[BLUE] = Number(message.scores[BLUE.toString()]);
+                        updateScoreDisplay();
+                    }
+
+                    let winnerText = "Game Over. ";
+                    if (message.winner === RED) winnerText += "Red wins!";
+                    else if (message.winner === BLUE) winnerText += "Blue wins!";
+                    else if (message.winner === "draw") winnerText += "It's a draw!";
+                    else winnerText += "Game ended."; 
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = winnerText;
+                    updateTurnIndicator(); 
+                    canvas.style.cursor = 'default';
+                    document.getElementById('new-game-btn').textContent = "New Game (Local)";
+                    if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'block'; // Allow new online game
+                    break;
+                case 'error':
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = `Error: ${message.message}`;
+                    if (message.message.includes("Session not found") || message.message.includes("full")) {
+                        if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'block';
+                    }
+                    break;
+                case 'opponent_disconnected': // This might be redundant if server sends game_over on disconnect-win
+                    if (serverMessageDisplay && !gameOver) { // Only show if game isn't already marked over
+                        serverMessageDisplay.textContent = "Opponent disconnected. Waiting for server update on game status...";
+                    }
+                    // Don't immediately set gameOver = true here if a game_over message is expected to follow.
+                    // If game_over doesn't follow, socket.onclose will eventually handle UI cleanup.
+                    // However, if this is the *only* message, then the game is effectively over.
+                    // For robustness, let's assume this could be the only message for now if game doesn't end by win.
+                    if (!gameOver) { // If game_over hasn't been declared by another message
+                        // gameOver = true; // Server should be the source of truth for game_over if it's a win
+                        // updateTurnIndicator();
+                    }
+                    // canvas.style.cursor = 'default'; // Let game_over or onclose handle this
+                    // document.getElementById('new-game-btn').textContent = "New Game (Local)";
+                    // if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'block'; 
+                    break;
+                default:
+                    console.warn("Unknown message type from server:", message.type);
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = `Received unknown message type: ${message.type}`;
+            }
+        }
+
          document.addEventListener('DOMContentLoaded', () => {
-             initializeBoard();
-             setupCanvas();
-             updateScoreDisplay();
-             updateTurnIndicator();
-             canvas.addEventListener('click', handleClick);
-             canvas.addEventListener('mousemove', handleMouseMove);
-             canvas.addEventListener('mouseout', handleMouseOut);
-             canvas.addEventListener('touchstart', (e) => {
-                 if (gameOver) return;
-                 e.preventDefault();
-                 handleMouseMove(e);
-             }, { passive: false });
-             canvas.addEventListener('touchend', (e) => {
-                 if (gameOver) return;
-                 const currentHover = hoverPosition;
-                 if (currentHover) {
-                     handleClick(e);
-                 }
-             }, { passive: false });
-             document.getElementById('new-game-btn').addEventListener('click', resetGame);
-             document.getElementById('rules-btn').addEventListener('click', toggleRules);
-             window.addEventListener('resize', () => {
-                 console.log("Window resized");
-                 setupCanvas();
-             });
-         });
+            serverMessageDisplay = document.getElementById('server-message-display'); // Initialize here
+            initializeBoard();
+            setupCanvas();
+            updateScoreDisplay();
+            updateTurnIndicator();
+
+            canvas.addEventListener('click', handleClick);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseout', handleMouseOut);
+            canvas.addEventListener('touchstart', (e) => {
+                if (gameOver) return;
+                e.preventDefault();
+                handleMouseMove(e);
+            }, { passive: false });
+            canvas.addEventListener('touchend', (e) => {
+                if (gameOver) return;
+                const currentHover = hoverPosition;
+                if (currentHover) {
+                    handleClick(e);
+                }
+            }, { passive: false });
+
+            // Updated new-game-btn logic for multiplayer context
+            document.getElementById('new-game-btn').addEventListener('click', () => {
+                const onlineOptionsDiv = document.getElementById('online-options');
+                const newGameButton = document.getElementById('new-game-btn');
+
+                if (isMultiplayerGame) {
+                    // If in a multiplayer game, this button means "Leave Game"
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = "Left the online game. Switched to local mode.";
+                    isMultiplayerGame = false; 
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        // Consider sending a "leave_game" message to server if implemented
+                        socket.close(); 
+                        console.log("WebSocket connection closed by user action (Leave Game).");
+                        socket = null; 
+                    }
+                    if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'block'; // Show options to play online again
+                    newGameButton.textContent = "New Game (Local)";
+                    resetGame(); // Reset to a clean local state
+                } else {
+                    // If not in a multiplayer game, it's "New Game (Local)"
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = "New local game started.";
+                     if (onlineOptionsDiv) onlineOptionsDiv.style.display = 'none'; // Ensure online options are hidden
+                     newGameButton.textContent = "New Game (Local)"; // Ensure it says this
+                     resetGame(); 
+                }
+                // updateTurnIndicator(); // resetGame calls this
+            });
+            document.getElementById('rules-btn').addEventListener('click', toggleRules);
+
+            // Multiplayer UI event listeners
+            const playOnlineBtn = document.getElementById('play-online-btn');
+            const onlineOptionsDiv = document.getElementById('online-options');
+            const createGameBtn = document.getElementById('create-game-btn');
+            const joinGameBtn = document.getElementById('join-game-btn');
+            const sessionIdInput = document.getElementById('session-id-input'); 
+
+            // Initially disable online buttons until connection is established
+            if (createGameBtn) createGameBtn.disabled = true;
+            if (joinGameBtn) joinGameBtn.disabled = true;
+
+            playOnlineBtn.addEventListener('click', () => {
+                const currentlyVisible = onlineOptionsDiv.style.display === 'block';
+                onlineOptionsDiv.style.display = currentlyVisible ? 'none' : 'block';
+                
+                if (onlineOptionsDiv.style.display === 'block') { // If panel is now visible
+                    if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
+                        if (serverMessageDisplay) serverMessageDisplay.textContent = "Connecting to server...";
+                        connectWebSocket(); // This will attempt to connect and update button states in onopen/onclose
+                    } else if (socket.readyState === WebSocket.OPEN) {
+                        if (serverMessageDisplay) serverMessageDisplay.textContent = "Connected. Choose an online option.";
+                        if (createGameBtn) createGameBtn.disabled = false;
+                        if (joinGameBtn) joinGameBtn.disabled = false;
+                    } else if (socket.readyState === WebSocket.CONNECTING) {
+                        if (serverMessageDisplay) serverMessageDisplay.textContent = "Still connecting...";
+                        if (createGameBtn) createGameBtn.disabled = true;
+                        if (joinGameBtn) joinGameBtn.disabled = true;
+                    }
+                }
+            });
+
+            createGameBtn.addEventListener('click', () => {
+                initiateCreateGame(); 
+            });
+
+            joinGameBtn.addEventListener('click', () => {
+                const joinId = sessionIdInput.value.trim(); 
+                if (joinId) {
+                    initiateJoinGame(joinId); 
+                } else {
+                    if (serverMessageDisplay) serverMessageDisplay.textContent = "Please enter a Session ID to join.";
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                console.log("Window resized");
+                setupCanvas();
+            });
+        });
     </script>
 </body>
 </html>
