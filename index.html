@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tessellate Game (Corner Click)</title>
+    <title>Tessellate</title>
     <style>
          :root {
             --bg-color: #1a1a2e;
@@ -193,13 +193,15 @@
     </div>
 
     <div class="rules" id="rules-panel">
-         <p>Two players, red and blue, place triangular tiles on the board, one after another.</p>
-         <p>Placing a tile fills one triangular half of a score radiating from that corner.</p>
-         <p>Using a corner prevents anyone from using the two adjacent corners in the square.</p>
-         <p>Your score is the <strong>product</strong> of the sizes (# of triangles) of all your connected regions.</p>
-         <p>Connected regions are formed by tiles of the same color that share a full edge.</p>
-         <p>The game ends when all possible tile slots (50 for a 5x5 visual grid) are filled.</p>
-         <p>The player with the highest score wins.</p>
+         <p>1. A player's turn consists of placing a tile with their color on the board.</p>
+         <p>2. A tile fills one half of a square with a right triangle.</p>
+         <p>3. Tiles may not be placed on top of each other.</p>
+         <p>4. Tiles of the same color that border each other form an island.</p>
+         <p>5. The size of an island is the number of tiles in it.</p>
+         <p>6. A player's score is the product of their islands (the result of multiplying all their island sizes together).</p>
+         <p>7. The game ends when all the squares are filled.</p>
+         <p>8. The player with the highest score at the end of the game wins.</p>
+         <p>Note that a player's score may not always increase.</p>
      </div>
 
     <div id="controls">
