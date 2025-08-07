@@ -1,0 +1,14 @@
+{
+  "name": "tessellate",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build"
+  },
+  "dependencies": {
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.9"
+  }
+}

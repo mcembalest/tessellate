@@ -207,6 +207,7 @@
     <div id="controls">
         <button id="new-game-btn">New Game</button>
         <button id="rules-btn">Rules</button>
+        <button id="undo-btn">Undo</button>
     </div>
 
      
@@ -238,6 +239,7 @@
         let gameOver = false;
         let hoverPosition = null; 
         let placedTilesCount = 0;
+        let moveHistory = [];
 
         function initializeBoard() {
             board = Array(LOGICAL_GRID_SIZE).fill(null).map(() =>
@@ -248,6 +250,7 @@
             hoverPosition = null;
             gameOver = false;
             placedTilesCount = 0;
+            moveHistory = [];
             console.log(`Board Initialized (${LOGICAL_GRID_SIZE}x${LOGICAL_GRID_SIZE} Logical Grid)`);
         }
 
@@ -497,6 +500,18 @@
                  const moveSuccessful = addTile(r, c);
 
                  if (moveSuccessful) {
+                     // Save state before changing turn
+                     const prevScores = { ...scores };
+                     
+                     // Store move in history
+                     moveHistory.push({
+                         r: r,
+                         c: c,
+                         player: currentTurn,
+                         prevScores: prevScores,
+                         boardSnapshot: board.map(row => [...row])
+                     });
+                     
                      calculateScore();     // Update score based on new board
                      updateScoreDisplay(); // Show new score
                      currentTurn = 1 - currentTurn; // Switch turn
@@ -563,6 +578,31 @@
             const rulesPanel = document.getElementById('rules-panel');
             rulesPanel.style.display = rulesPanel.style.display === 'block' ? 'none' : 'block';
         }
+        
+        function undoLastMove() {
+            if (moveHistory.length === 0 || gameOver) {
+                console.log('No moves to undo or game is over');
+                return;
+            }
+            
+            const lastMove = moveHistory.pop();
+            
+            // Restore board state
+            board = lastMove.boardSnapshot;
+            
+            // Restore game state
+            currentTurn = lastMove.player;
+            scores = lastMove.prevScores;
+            placedTilesCount--;
+            gameOver = false;
+            
+            // Update UI
+            updateScoreDisplay();
+            updateTurnIndicator();
+            drawBoard();
+            
+            console.log(`Undid move at (${lastMove.r}, ${lastMove.c}) by ${lastMove.player === RED ? 'RED' : 'BLUE'}`);
+        }
          document.addEventListener('DOMContentLoaded', () => {
              initializeBoard();
              setupCanvas();
@@ -585,6 +625,7 @@
              }, { passive: false });
              document.getElementById('new-game-btn').addEventListener('click', resetGame);
              document.getElementById('rules-btn').addEventListener('click', toggleRules);
+             document.getElementById('undo-btn').addEventListener('click', undoLastMove);
              window.addEventListener('resize', () => {
                  console.log("Window resized");
                  setupCanvas();

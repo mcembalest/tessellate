@@ -74,6 +74,21 @@ These are the rules of Tessellate. They explain the process of taking turns, sco
 - Warning dialog when abandoning mid-game
 - No build process, no framework
 
+### UI Features
+- **Rules Button**: Displays game rules in a modal
+- **Score Explanation Button**: Shows visual breakdown of score calculation
+  - Located next to Rules button with same visual style
+  - Displays both players' score calculations
+  - Each island rendered as 30x30px canvas showing actual irregular shape
+  - Formula layout: horizontal with wrap
+  - Format: `[island1] × [island2] × [island3] = 24`
+  - Island size integer displayed with each mini canvas
+  - Hover interaction: highlights corresponding tiles on main board
+  - Updates live when moves are made or when opened
+- **Undo Button**: Allows undoing the last move
+  - Reverts board state, scores, and turn
+  - Available during active games only
+
 ### Development Mode
 - Local bot-vs-bot games for testing
 - Ephemeral in-memory storage (no database required)
@@ -86,6 +101,7 @@ These are the rules of Tessellate. They explain the process of taking turns, sco
 - PostgreSQL database
 - REST API (no GraphQL)
 - Polling (no WebSockets)
+- Move format for API to be determined (investigate optimal format for bot integration)
 
 
 ## Required Capabilities
@@ -114,6 +130,13 @@ These are the rules of Tessellate. They explain the process of taking turns, sco
 - Custom game IDs
 - Move timestamps
 - Connection status indicators
+
+## Technical Improvements Needed
+- **Move Validation**: Improve beyond basic "is empty" check
+- **Island Detection Optimization**: Current DFS rescans entire board each move (O(n²))
+  - Consider incremental updates or caching
+  - Track island membership per tile to avoid repeated scanning
+- **Coordinate System**: Consider refactoring the logical/visual grid mapping for clarity
 
 ## Success Criteria
 1. Can play a full game locally
