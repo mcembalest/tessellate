@@ -1,10 +1,19 @@
 {
   "name": "tessellate",
   "version": "1.0.0",
+  "description": "A strategic board game with multiplicative scoring",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "vercel build"
+    "start": "npx http-server -p 8000 -o",
+    "dev": "npx http-server -p 8000 -o -c-1",
+    "browser": "npx http-server -p 8000 -o browser.html -c-1",
+    "vercel-dev": "vercel dev",
+    "build": "vercel build",
+    "python-server": "python3 start_server.py",
+    "generate-games": "python3 agents.py"
   },
+  "keywords": ["game", "board-game", "strategy", "tessellate"],
+  "author": "Max Cembalest",
+  "license": "ISC",
   "dependencies": {
     "pg": "^8.11.3"
   },

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tessellate Game Viewer</title>
+    <title>Tessellate - Game Browser</title>
     <style>
         :root {
             --bg-color: #1a1a2e;
@@ -230,13 +230,19 @@
 <body>
     <div class="sidebar">
         <div class="load-section">
-            <h2>Load Games</h2>
-            <input type="file" id="file-input" accept=".json">
+            <h2>Game Browser</h2>
+            <button class="load-btn" onclick="window.location.href='index.html'" style="background-color: #e94560;">
+                ← Back to Game
+            </button>
+            <button class="load-btn" id="load-sample-btn">
+                Reload Games
+            </button>
+            <input type="file" id="file-input" accept=".json" style="display: none;">
             <button class="load-btn" onclick="document.getElementById('file-input').click()">
-                Load Games JSON
+                Load Custom JSON
             </button>
             <div class="stats" id="stats">
-                No games loaded
+                Loading games...
             </div>
         </div>
         
@@ -609,8 +615,83 @@
             }
         }
 
+        // Load sample games function (auto-loads 1000 games)
+        async function loadSampleGames() {
+            // In production, this URL would point to your server
+            const PRODUCTION_DATA_URL = 'https://your-server.com/api/games/1000';
+            const DEVELOPMENT_DATA_URL = 'random_games_1000.json';
+            
+            // Check if we're running from file:// protocol (local development)
+            const isFileProtocol = window.location.protocol === 'file:';
+            
+            // Check if we're on localhost (local server development)
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
+            
+            // Determine which URL to use
+            const dataUrl = (isFileProtocol || isLocalhost) ? DEVELOPMENT_DATA_URL : PRODUCTION_DATA_URL;
+            
+            try {
+                // Try to fetch the data
+                const response = await fetch(dataUrl);
+                if (response.ok) {
+                    games = await response.json();
+                    console.log(`Loaded ${games.length} games from ${dataUrl}`);
+                    displayGameList();
+                    updateStats();
+                    if (games.length > 0) {
+                        selectGame(0);
+                    }
+                    return;
+                }
+            } catch (error) {
+                console.log(`Could not load from ${dataUrl}:`, error);
+            }
+            
+            // Fallback to smaller files if 1000 not available
+            const fallbackFiles = ['random_games_100.json', 'sample_games_embedded.json'];
+            for (const filename of fallbackFiles) {
+                try {
+                    const response = await fetch(filename);
+                    if (response.ok) {
+                        games = await response.json();
+                        console.log(`Loaded ${games.length} games from ${filename}`);
+                        displayGameList();
+                        updateStats();
+                        if (games.length > 0) {
+                            selectGame(0);
+                        }
+                        return;
+                    }
+                } catch (error) {
+                    console.log(`Could not load ${filename}`);
+                }
+            }
+            
+            // If no files could be loaded (likely due to CORS when opening via file://)
+            console.log('Could not auto-load games. Please use "Load Custom JSON" to load a game file.');
+            games = [];
+            
+            // Update stats to show helpful message
+            const stats = document.getElementById('stats');
+            stats.innerHTML = `
+                <strong>No games loaded</strong><br>
+                Use "Load Custom JSON" to browse<br>
+                and select a game file
+            `;
+        }
+
+        // Fallback for when no games can be loaded
+        function getSampleGames() {
+            // In production, this would fetch from an API
+            // For now, returns a message to load games
+            alert("Please click 'Load Sample Games' to load the demo games, or 'Load Custom JSON' to load your own game file.");
+            return [];
+        }
+
         // Event listeners
         document.getElementById('file-input').addEventListener('change', loadGames);
+        document.getElementById('load-sample-btn').addEventListener('click', loadSampleGames);
         document.getElementById('first-btn').addEventListener('click', firstMove);
         document.getElementById('prev-btn').addEventListener('click', prevMove);
         document.getElementById('next-btn').addEventListener('click', nextMove);
@@ -649,6 +730,9 @@
         // Initialize
         initBoard();
         drawBoard();
+        
+        // Auto-load games on page load
+        loadSampleGames();
     </script>
 </body>
 </html>

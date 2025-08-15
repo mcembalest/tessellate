@@ -4,3 +4,7 @@
 node_modules/
 .vercel/
 .vercel
+*.pyc
+__pycache__/
+dist/
+build/
