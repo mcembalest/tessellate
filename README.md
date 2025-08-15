@@ -19,21 +19,61 @@ A simple and surprising board game.
 - **States per position**: 4 values (EMPTY=0, RED=1, BLUE=2, BLOCKED=3)
 - **Total positions**: 100 (but only 50 can have tiles)
 
-## Reinforcement Learning on Tessellate
+## Tessellate as an RL Research Environment
 
-### Model Architecture and Hyperparameters
-- **Type**: 2-layer MLP (simple for interpretability)
-- **Input**: Flattened board state (100 positions) + current player (1) = 101 dims
-- **Output**: Next move prediction (100 logits for each board position)
-- **Training**: Behavioral cloning on 1M+ random games
-- **Architecture**: 2-layer MLP (no attention needed)
-- **Hidden dim**: 128 neurons
-- **Learning rate**: 0.001
-- **Batch size**: 64
-- **Training data**: 1M+ random games
-- **Loss**: Cross-entropy for next-move prediction
+Tessellate provides an interesting testbed for reinforcement learning algorithms with unique challenges:
 
-### Expected Features to Detect
+### Why Tessellate is Interesting for RL
+
+1. **Non-trivial but learnable**: Random play achieves ~50% win rate
+2. **Multiplicative scoring**: Creates complex, non-linear value functions
+3. **Compositional structure**: Local decisions have global consequences
+4. **Short episodes**: Games are exactly 50 moves (25 per player)
+5. **Perfect information**: Fully observable, deterministic transitions
+
+### Environment Interface
+
+```python
+from tessellate_env import TessellateEnv
+
+env = TessellateEnv(reward_mode='mixed')
+obs = env.reset()
+
+while not env.is_terminal():
+    valid_actions = env.get_valid_actions()
+    action = agent.select_action(obs, valid_actions)
+    obs, reward, done, info = env.step(action)
+```
+
+### Baseline Results
+
+| Agent | Win Rate vs Random | Avg Score | Training |
+|-------|-------------------|-----------|-----------|
+| Random | 50.0% | ~600 | - |
+| Value Network (1k games) | 48.0% | 613 | 20 epochs |
+| Value Network (10k games) | 50.0% | 699 | 30 epochs |
+
+The environment is not solved - plenty of room for improvement!
+
+### Research Challenges
+
+1. **Credit Assignment**: How do early moves affect final multiplicative score?
+2. **Exploration vs Exploitation**: When to start new islands vs growing existing ones?
+3. **Opponent Modeling**: Can you learn to exploit predictable opponents?
+4. **Feature Discovery**: What spatial patterns lead to high scores?
+5. **Compositional Reasoning**: How to balance multiple islands for maximum product?
+
+### Suggested Research Directions
+
+- **Self-play algorithms** (AlphaZero-style)
+- **Model-based RL** (planning with learned dynamics)
+- **Hierarchical RL** (island-level vs tile-level decisions)
+- **Multi-agent RL** (Nash equilibria, opponent shaping)
+- **Interpretability** (what strategies emerge?)
+- **Curriculum learning** (start with smaller boards?)
+- **Transfer learning** (from solved positions to full game)
+
+### Expected Emergent Features
 1. **Tile-level**: Individual position importance
 2. **Island-level**: Detection and size tracking
 3. **Action-level**: 
