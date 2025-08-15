@@ -468,7 +468,8 @@
         function selectGame(index) {
             currentGameIndex = index;
             currentGame = games[index];
-            currentMoveIndex = 0;
+            // Start at the end of the game for better UX
+            currentMoveIndex = currentGame.moves.length;
             
             // Update UI
             document.querySelectorAll('.game-item').forEach((item, i) => {
@@ -478,7 +479,7 @@
             // Setup move slider
             const slider = document.getElementById('move-slider');
             slider.max = currentGame.moves.length;
-            slider.value = 0;
+            slider.value = currentGame.moves.length;
             
             // Update URL with game index (1-indexed for users)
             if (currentBatchId) {

@@ -8,3 +8,5 @@ node_modules/
 __pycache__/
 dist/
 build/
+game_data/batch_*.json
+game_data/all_games_*.json
