@@ -90,10 +90,10 @@ When placing tile at (r,c):
 - **Total positions**: 100 (but only 50 can have tiles)
 
 ### Model Architecture
-- **Type**: 2-layer transformer
-- **Input**: Flattened board state (100 positions × 4 one-hot = 400 dims)
-- **Output**: Policy head (100 logits) + Value head (1 scalar)
-- **Training**: Self-play with MCTS
+- **Type**: 2-layer MLP (simple for interpretability)
+- **Input**: Flattened board state (100 positions) + current player (1) = 101 dims
+- **Output**: Next move prediction (100 logits for each board position)
+- **Training**: Behavioral cloning on 1M+ random games
 
 ### Features to Detect (Interpretability Focus)
 1. **Tile-level**: Individual position importance
@@ -157,44 +157,36 @@ When placing tile at (r,c):
 - [x] **3.6** Build lichess-style game viewer
 - [x] **3.7** Fix triangle rendering issues
 
-### Phase 4: Neural Network (Hours 12-20)
-- [ ] **4.1** Install PyTorch
-- [ ] **4.2** Define 2-layer transformer architecture
-- [ ] **4.3** Implement forward pass
-- [ ] **4.4** Test with dummy input (shape validation)
-- [ ] **4.5** Add policy and value heads
-- [ ] **4.6** Implement loss functions
+### Phase 4: Neural Network & Training (In Progress)
+- [x] **4.1** Install PyTorch
+- [x] **4.2** Define 2-layer MLP architecture (101→128→100)
+- [x] **4.3** Implement next-token prediction
+- [x] **4.4** Create training pipeline
+- [ ] **4.5** Train on 1M+ games
+- [ ] **4.6** Implement evaluation agents
 
-### Phase 5: MCTS Integration (Hours 20-28)
-- [ ] **5.1** Basic MCTS node structure
-- [ ] **5.2** Selection phase (UCB formula)
-- [ ] **5.3** Expansion phase
-- [ ] **5.4** Simulation phase (using neural network)
-- [ ] **5.5** Backpropagation phase
-- [ ] **5.6** Integration test (1 full game with MCTS)
+### Phase 5: Evaluation Agents
+- [ ] **5.1** Random baseline agent
+- [ ] **5.2** Merge-avoiding heuristic agent
+- [ ] **5.3** Model-based agent (picks highest probability move)
+- [ ] **5.4** Tournament system (100+ games per matchup)
+- [ ] **5.5** Win rate and score analysis
+- [ ] **5.6** Strategy comparison
 
-### Phase 6: Self-Play Training (Hours 28-36)
-- [ ] **6.1** Self-play game generation
-- [ ] **6.2** Experience buffer
-- [ ] **6.3** Training loop (network updates)
-- [ ] **6.4** Save/load model checkpoints
-- [ ] **6.5** Basic training metrics (loss curves)
-- [ ] **6.6** Run overnight training
+### Phase 6: Mechanistic Interpretability
+- [ ] **6.1** Probe for island detection neurons
+- [ ] **6.2** Analyze merge vs non-merge decisions
+- [ ] **6.3** Position preference heatmaps
+- [ ] **6.4** Hidden layer feature analysis
+- [ ] **6.5** Ablation studies
+- [ ] **6.6** Document emergent strategies
 
-### Phase 7: Interpretability (Hours 36-44)
-- [ ] **7.1** Attention weight extraction
-- [ ] **7.2** Feature probe: Island detection
-- [ ] **7.3** Feature probe: Action classification
-- [ ] **7.4** Visualize learned positional preferences
-- [ ] **7.5** Analyze strategic patterns
-- [ ] **7.6** Document findings
-
-### Phase 8: Polish & Analysis (Hours 44-48)
-- [ ] **8.1** Generate substantial game dataset
-- [ ] **8.2** Statistical analysis of learned strategies
-- [ ] **8.3** Create visualization notebook
-- [ ] **8.4** Write up key findings
-- [ ] **8.5** Package code for easy reproduction
+### Phase 7: Final Analysis & Documentation
+- [ ] **7.1** Compare learned strategies across agents
+- [ ] **7.2** Statistical analysis of model predictions
+- [ ] **7.3** Create visualization notebook
+- [ ] **7.4** Write up key findings
+- [ ] **7.5** Package code for reproduction
 
 ---
 
@@ -210,39 +202,33 @@ def get_neighbors(r, c):
     return neighbors
 ```
 
-### MCTS Parameters (Tunable)
-- **Simulations per move**: Start with 100 (fast), increase if needed
-- **Exploration constant (c_puct)**: 1.0 initially
-- **Dirichlet noise**: Alpha=0.3 for exploration during self-play
-- **Temperature**: 1.0 for first 15 moves, then 0.1
-
 ### Neural Network Hyperparameters
-- **Embedding dim**: 64 (small for interpretability)
-- **Attention heads**: 4
-- **Hidden dim**: 128
+- **Architecture**: 2-layer MLP (no attention needed)
+- **Hidden dim**: 128 neurons
 - **Learning rate**: 0.001
-- **Batch size**: 32
-- **Training games before update**: 100
+- **Batch size**: 64
+- **Training data**: 1M+ random games
+- **Loss**: Cross-entropy for next-move prediction
 
 ### Interpretability Tools
-1. **Attention maps**: Which positions attend to which
+1. **Neuron activation analysis**: Which neurons detect islands/merges
 2. **Probing classifiers**: Train linear probes on hidden states
 3. **Feature visualization**: What patterns activate neurons
-4. **Behavioral tests**: Specific board positions to test understanding
+4. **Behavioral tests**: Compare model vs heuristic agent decisions
 
 ---
 
 ## Success Metrics
-- **Phase 1-3**: Game runs without crashes, scores computed correctly
-- **Phase 4-5**: Network makes legal moves, MCTS improves play
-- **Phase 6**: Self-play games show strategic improvement over time
-- **Phase 7**: Can identify at least 3 emergent features (islands, merging, blocking)
+- **Phase 1-3**: Game runs without crashes, scores computed correctly ✅
+- **Phase 4**: Model trains and makes legal moves
+- **Phase 5**: Model outperforms random agent
+- **Phase 6**: Can identify emergent features (island detection, merge avoidance)
 
-## Fallback Plans
-- If MCTS too slow: Reduce to greedy search with network evaluation
-- If transformer too complex: Fall back to small CNN
-- If training unstable: Use behavior cloning on good random games first
-- If 48 hours not enough: Prioritize working pipeline over perfect model
+## Evaluation Metrics
+- **Win rate vs Random**: Should exceed 50%
+- **Win rate vs Merge-Avoiding**: Tests if model learned the key heuristic
+- **Illegal move rate**: Should be near 0%
+- **Average score**: Should exceed random baseline
 
 ---
 

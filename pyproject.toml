@@ -1,0 +1,11 @@
+[project]
+name = "Tessellate"
+version = "0.1.0"
+description = "A simple and surprising board game"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torch>=2.8.0",
+    "matplotlib",
+    "numpy"
+]
