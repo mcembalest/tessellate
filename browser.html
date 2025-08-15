@@ -60,15 +60,47 @@
             cursor: pointer;
             transition: all 0.2s;
             font-size: 14px;
+            position: relative;
+            border-left: 4px solid transparent;
+        }
+        
+        /* Winner-based styling */
+        .game-item.red-win {
+            background: linear-gradient(90deg, rgba(233, 69, 96, 0.15) 0%, rgba(15, 52, 96, 0.8) 100%);
+            border-left-color: var(--red-color);
+        }
+        
+        .game-item.blue-win {
+            background: linear-gradient(90deg, rgba(63, 114, 175, 0.15) 0%, rgba(15, 52, 96, 0.8) 100%);
+            border-left-color: var(--blue-color);
+        }
+        
+        /* Magnitude-based intensity */
+        .game-item.blowout {
+            font-weight: bold;
+        }
+        
+        .game-item.blowout.red-win {
+            background: linear-gradient(90deg, rgba(233, 69, 96, 0.3) 0%, rgba(15, 52, 96, 0.8) 100%);
+            border-left-width: 6px;
+        }
+        
+        .game-item.blowout.blue-win {
+            background: linear-gradient(90deg, rgba(63, 114, 175, 0.3) 0%, rgba(15, 52, 96, 0.8) 100%);
+            border-left-width: 6px;
+        }
+        
+        .game-item.close {
+            opacity: 0.85;
         }
 
         .game-item:hover {
-            background-color: #1b4f8d;
             transform: translateX(5px);
+            filter: brightness(1.2);
         }
 
         .game-item.active {
-            background-color: var(--blue-color);
+            box-shadow: 0 0 10px rgba(255,255,255,0.3);
             font-weight: bold;
         }
 
@@ -76,6 +108,14 @@
             font-size: 12px;
             opacity: 0.8;
             margin-top: 3px;
+        }
+        
+        .game-item .sparkline {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
         }
 
         /* Main content area */
@@ -134,13 +174,45 @@
             max-height: 100%;
             aspect-ratio: 1 / 1;
         }
+        
+        .main-sparkline-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin: 20px auto;
+            padding: 10px;
+        }
+        
+        #main-sparkline {
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+        
+        .sparkline-label {
+            font-size: 12px;
+            opacity: 0.7;
+            text-align: center;
+        }
+        
+        .sparkline-tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+        }
 
         /* Controls */
         .controls {
             padding: 20px;
             background-color: var(--header-color);
             border-radius: 10px;
-            margin-top: 20px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -271,6 +343,12 @@
             <canvas id="game-board" width="500" height="500"></canvas>
         </div>
 
+        <div class="main-sparkline-container">
+            <div class="sparkline-label">Score Momentum</div>
+            <canvas id="main-sparkline" width="300" height="100"></canvas>
+            <div class="sparkline-label">Red ↑ / Blue ↓</div>
+        </div>
+
         <div class="controls">
             <button class="control-btn" id="first-btn" title="First move (Home)">⏮️</button>
             <button class="control-btn" id="prev-btn" title="Previous move (←)">⏪</button>
@@ -313,6 +391,11 @@
         const ctx = canvas.getContext('2d');
         let visualCellSize = canvas.width / VISUAL_GRID_SIZE;
         let logicalCellSize = canvas.width / LOGICAL_GRID_SIZE;
+        
+        // Sparkline setup
+        const mainSparklineCanvas = document.getElementById('main-sparkline');
+        const mainSparklineCtx = mainSparklineCanvas.getContext('2d');
+        const sparklineCache = new Map();
 
         const colors = {
             [RED]: '#e94560',
@@ -327,6 +410,128 @@
             board = Array(LOGICAL_GRID_SIZE).fill(null).map(() => 
                 Array(LOGICAL_GRID_SIZE).fill(EMPTY)
             );
+        }
+        
+        // Calculate score differences for a game
+        function calculateScoreDifferences(game) {
+            const diffs = [];
+            
+            // Start with difference of 0 (even game)
+            diffs.push(0);
+            
+            // Calculate difference after each move
+            for (let i = 0; i < game.moves.length; i++) {
+                let redScore, blueScore;
+                
+                if (i < game.moves.length - 1) {
+                    // Get scores from next move's score_before
+                    const nextMove = game.moves[i + 1];
+                    redScore = nextMove.score_before[RED] || nextMove.score_before['1'] || 1;
+                    blueScore = nextMove.score_before[BLUE] || nextMove.score_before['2'] || 1;
+                } else {
+                    // Last move - use final scores
+                    redScore = game.final_scores.red || 1;
+                    blueScore = game.final_scores.blue || 1;
+                }
+                
+                // Calculate difference (positive = red winning, negative = blue winning)
+                const diff = redScore - blueScore;
+                diffs.push(diff);
+            }
+            
+            return diffs;
+        }
+        
+        // Draw sparkline
+        function drawSparkline(canvas, diffs, currentMoveIdx = -1) {
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Background
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            ctx.fillRect(0, 0, width, height);
+            
+            if (diffs.length < 2) return;
+            
+            // Find max absolute difference for scaling
+            const maxDiff = Math.max(...diffs.map(Math.abs), 10); // Min scale of 10
+            const finalDiff = diffs[diffs.length - 1];
+            const centerY = height / 2;
+            
+            // Determine line thickness based on final score difference
+            const finalMagnitude = Math.abs(finalDiff);
+            let lineWidth = 1;
+            if (finalMagnitude < 50) {
+                lineWidth = 1; // Close game - thin line
+            } else if (finalMagnitude < 200) {
+                lineWidth = 2; // Normal victory
+            } else {
+                lineWidth = 3; // Blowout - thick line
+            }
+            
+            // Draw center line (diff = 0)
+            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw sparkline with gradient segments
+            for (let i = 1; i < diffs.length; i++) {
+                const x1 = ((i - 1) / (diffs.length - 1)) * width;
+                const x2 = (i / (diffs.length - 1)) * width;
+                
+                const normalizedDiff1 = diffs[i - 1] / maxDiff;
+                const normalizedDiff2 = diffs[i] / maxDiff;
+                const y1 = centerY - (normalizedDiff1 * centerY * 0.9);
+                const y2 = centerY - (normalizedDiff2 * centerY * 0.9);
+                
+                // Color based on who's winning at this point
+                if (diffs[i] > 0) {
+                    ctx.strokeStyle = 'rgba(233, 69, 96, 0.9)'; // Red winning
+                } else if (diffs[i] < 0) {
+                    ctx.strokeStyle = 'rgba(63, 114, 175, 0.9)'; // Blue winning
+                } else {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'; // Even
+                }
+                
+                ctx.lineWidth = lineWidth;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+            
+            // Draw current position marker if specified
+            if (currentMoveIdx >= 0 && currentMoveIdx < diffs.length) {
+                const x = (currentMoveIdx / (diffs.length - 1)) * width;
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+                ctx.stroke();
+            }
+        }
+        
+        // Draw small sparkline for sidebar
+        function createSmallSparkline(game) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 60;
+            canvas.height = 20;
+            canvas.className = 'sparkline';
+            
+            const diffs = calculateScoreDifferences(game);
+            drawSparkline(canvas, diffs);
+            
+            return canvas;
         }
 
         // Draw the board
@@ -452,13 +657,36 @@
                 li.className = 'game-item';
                 li.onclick = () => selectGame(index);
                 
+                // Determine winner and magnitude
+                const redScore = game.final_scores.red || 0;
+                const blueScore = game.final_scores.blue || 0;
+                const scoreDiff = Math.abs(redScore - blueScore);
+                
+                // Add winner class
+                if (game.winner === RED) {
+                    li.classList.add('red-win');
+                } else if (game.winner === BLUE) {
+                    li.classList.add('blue-win');
+                }
+                
+                // Add magnitude class
+                if (scoreDiff < 50) {
+                    li.classList.add('close');
+                } else if (scoreDiff > 200) {
+                    li.classList.add('blowout');
+                }
+                
                 const winner = game.winner === RED ? 'Red' : 
                              game.winner === BLUE ? 'Blue' : 'Tie';
                 
                 li.innerHTML = `
-                    Game ${index + 1} - ${winner}
-                    <div class="score">R: ${game.final_scores.red} | B: ${game.final_scores.blue}</div>
+                    Game ${index + 1} - <strong>${winner}</strong>
+                    <div class="score">R: ${redScore} | B: ${blueScore}</div>
                 `;
+                
+                // Add sparkline
+                const sparkline = createSmallSparkline(game);
+                li.appendChild(sparkline);
                 
                 gameList.appendChild(li);
             });
@@ -569,6 +797,10 @@
             document.getElementById('prev-btn').disabled = currentMoveIndex === 0;
             document.getElementById('next-btn').disabled = currentMoveIndex >= currentGame.moves.length;
             document.getElementById('last-btn').disabled = currentMoveIndex >= currentGame.moves.length;
+            
+            // Update main sparkline
+            const diffs = calculateScoreDifferences(currentGame);
+            drawSparkline(mainSparklineCanvas, diffs, currentMoveIndex);
         }
 
         // Navigation functions
@@ -689,6 +921,61 @@
         document.getElementById('next-btn').addEventListener('click', nextMove);
         document.getElementById('last-btn').addEventListener('click', lastMove);
         document.getElementById('play-btn').addEventListener('click', togglePlay);
+        
+        // Main sparkline click interaction
+        mainSparklineCanvas.addEventListener('click', (e) => {
+            if (!currentGame) return;
+            
+            const rect = mainSparklineCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const ratio = x / mainSparklineCanvas.width;
+            const targetMove = Math.round(ratio * currentGame.moves.length);
+            
+            currentMoveIndex = Math.max(0, Math.min(targetMove, currentGame.moves.length));
+            updateDisplay();
+        });
+        
+        // Main sparkline hover tooltip
+        let tooltip = null;
+        mainSparklineCanvas.addEventListener('mousemove', (e) => {
+            if (!currentGame) return;
+            
+            const rect = mainSparklineCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const ratio = x / mainSparklineCanvas.width;
+            const targetMove = Math.round(ratio * currentGame.moves.length);
+            
+            // Create or update tooltip
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.className = 'sparkline-tooltip';
+                document.body.appendChild(tooltip);
+            }
+            
+            // Get scores at this move
+            let redScore = 1, blueScore = 1;
+            if (targetMove > 0 && targetMove <= currentGame.moves.length) {
+                if (targetMove < currentGame.moves.length) {
+                    const nextMove = currentGame.moves[targetMove];
+                    redScore = nextMove.score_before[RED] || nextMove.score_before['1'] || 1;
+                    blueScore = nextMove.score_before[BLUE] || nextMove.score_before['2'] || 1;
+                } else {
+                    redScore = currentGame.final_scores.red || 1;
+                    blueScore = currentGame.final_scores.blue || 1;
+                }
+            }
+            
+            tooltip.innerHTML = `Move ${targetMove}<br>R: ${redScore} | B: ${blueScore}`;
+            tooltip.style.left = e.clientX + 10 + 'px';
+            tooltip.style.top = e.clientY - 30 + 'px';
+            tooltip.style.display = 'block';
+        });
+        
+        mainSparklineCanvas.addEventListener('mouseleave', () => {
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        });
         
         // Batch selector change handler
         document.getElementById('batch-selector').addEventListener('change', async (e) => {

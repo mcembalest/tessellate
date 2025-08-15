@@ -92,6 +92,40 @@ The game uses a 10×10 logical grid mapped to a 5×5 visual grid:
 - Odd/odd = bottom-right triangle
 
 
+## Planned Features
+
+### Score Ratio Sparklines (TODO)
+
+Add visual momentum indicators to the game browser:
+
+**Sparkline Specification:**
+- **Location**: 
+  - Small sparkline next to each game in the sidebar list
+  - Larger sparkline above/below main game canvas
+- **Calculation**: 
+  - Score ratio = Red Score / Blue Score
+  - Handle edge cases: min(score, 1) to avoid divide by zero
+  - Ratio > 1: Red is winning
+  - Ratio < 1: Blue is winning  
+  - Ratio = 1: Even game
+- **Visual Style**:
+  - Thin line graph (2px stroke)
+  - Height: 20px for sidebar, 40px for main view
+  - Color: Gradient from blue (ratio < 1) through white (ratio = 1) to red (ratio > 1)
+- **Scale**:
+  - Logarithmic Y-axis centered at y=1
+  - Range: 0.1x to 10x (one order of magnitude each direction)
+  - Horizontal line at y=1 for reference
+- **Interactivity**:
+  - Click anywhere on sparkline to jump to that move
+  - Hover shows tooltip with exact scores
+  - Current move position marked with vertical line
+
+**Implementation Notes**:
+- Use Canvas API for performance with 1000+ games
+- Cache sparkline renders for game list
+- Update main sparkline on each move during playback
+
 ## Citation
 
 If you use Tessellate in your research, please cite:
