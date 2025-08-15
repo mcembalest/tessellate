@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tessellate Game Viewer</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --header-color: #16213e;
+            --text-color: #e3e3e3;
+            --accent-color: #0f3460;
+            --red-color: #e94560;
+            --blue-color: #3f72af;
+            --grid-color: #e3e3e3;
+            --empty-bg: #37474f;
+            --blocked-bg: #2c3a47;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Left sidebar - game list */
+        .sidebar {
+            width: 250px;
+            background-color: var(--header-color);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid var(--accent-color);
+        }
+
+        .sidebar h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .game-list {
+            list-style: none;
+        }
+
+        .game-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            background-color: var(--accent-color);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .game-item:hover {
+            background-color: #1b4f8d;
+            transform: translateX(5px);
+        }
+
+        .game-item.active {
+            background-color: var(--blue-color);
+            font-weight: bold;
+        }
+
+        .game-item .score {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* Game info header */
+        .game-header {
+            background-color: var(--header-color);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .score-display {
+            display: flex;
+            gap: 30px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .red-score {
+            color: var(--red-color);
+        }
+
+        .blue-score {
+            color: var(--blue-color);
+        }
+
+        .move-info {
+            font-size: 18px;
+        }
+
+        /* Canvas container */
+        .board-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 0;
+        }
+
+        #game-board {
+            background-color: var(--empty-bg);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+            border-radius: 8px;
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 1 / 1;
+        }
+
+        /* Controls */
+        .controls {
+            padding: 20px;
+            background-color: var(--header-color);
+            border-radius: 10px;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            background-color: #1b4f8d;
+            transform: translateY(-2px);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .move-slider {
+            flex: 1;
+            max-width: 400px;
+            margin: 0 20px;
+        }
+
+        .move-slider input {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        /* Keyboard shortcuts hint */
+        .shortcuts {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: var(--header-color);
+            border-radius: 5px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        /* Load games button */
+        .load-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--accent-color);
+        }
+
+        .load-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: var(--blue-color);
+            color: var(--text-color);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .load-btn:hover {
+            background-color: #5090d3;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .stats {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--accent-color);
+            border-radius: 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="load-section">
+            <h2>Load Games</h2>
+            <input type="file" id="file-input" accept=".json">
+            <button class="load-btn" onclick="document.getElementById('file-input').click()">
+                Load Games JSON
+            </button>
+            <div class="stats" id="stats">
+                No games loaded
+            </div>
+        </div>
+        
+        <h2>Games</h2>
+        <ul class="game-list" id="game-list">
+            <!-- Games will be added here -->
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="game-header">
+            <div class="score-display">
+                <div class="red-score">Red: <span id="red-score">0</span></div>
+                <div class="blue-score">Blue: <span id="blue-score">0</span></div>
+            </div>
+            <div class="move-info">
+                Move <span id="current-move">0</span> / <span id="total-moves">0</span>
+                | <span id="current-player">-</span>'s turn
+            </div>
+        </div>
+
+        <div class="board-container">
+            <canvas id="game-board" width="500" height="500"></canvas>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" id="first-btn" title="First move (Home)">⏮️</button>
+            <button class="control-btn" id="prev-btn" title="Previous move (←)">⏪</button>
+            <button class="control-btn" id="play-btn" title="Play/Pause (Space)">▶️</button>
+            <button class="control-btn" id="next-btn" title="Next move (→)">⏩</button>
+            <button class="control-btn" id="last-btn" title="Last move (End)">⏭️</button>
+            <div class="move-slider">
+                <input type="range" id="move-slider" min="0" max="50" value="0">
+            </div>
+        </div>
+    </div>
+
+    <div class="shortcuts">
+        ← → Arrow keys: Navigate moves<br>
+        Space: Play/Pause<br>
+        Home/End: First/Last move
+    </div>
+
+    <script>
+        // Game state
+        let games = [];
+        let currentGameIndex = -1;
+        let currentGame = null;
+        let currentMoveIndex = 0;
+        let board = [];
+        let isPlaying = false;
+        let playInterval = null;
+
+        // Constants
+        const RED = 1;
+        const BLUE = 2;
+        const EMPTY = 0;
+        const BLOCKED = 3;
+        const VISUAL_GRID_SIZE = 5;
+        const LOGICAL_GRID_SIZE = 10;
+
+        // Canvas setup
+        const canvas = document.getElementById('game-board');
+        const ctx = canvas.getContext('2d');
+        let visualCellSize = canvas.width / VISUAL_GRID_SIZE;
+        let logicalCellSize = canvas.width / LOGICAL_GRID_SIZE;
+
+        const colors = {
+            [RED]: '#e94560',
+            [BLUE]: '#3f72af',
+            background: '#37474f',
+            gridLines: '#e3e3e3',
+            blocked: '#2c3a47'
+        };
+
+        // Initialize empty board
+        function initBoard() {
+            board = Array(LOGICAL_GRID_SIZE).fill(null).map(() => 
+                Array(LOGICAL_GRID_SIZE).fill(EMPTY)
+            );
+        }
+
+        // Draw the board
+        function drawBoard() {
+            // Recalculate cell sizes
+            visualCellSize = canvas.width / VISUAL_GRID_SIZE;
+            logicalCellSize = canvas.width / LOGICAL_GRID_SIZE;
+            
+            // Clear canvas
+            ctx.fillStyle = colors.background;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw tiles
+            for (let r = 0; r < LOGICAL_GRID_SIZE; r++) {
+                for (let c = 0; c < LOGICAL_GRID_SIZE; c++) {
+                    const state = board[r][c];
+                    if (state === RED || state === BLUE) {
+                        drawTile(r, c, state);
+                    }
+                }
+            }
+
+            // Draw grid lines (5x5 visual grid)
+            ctx.strokeStyle = colors.gridLines;
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i <= VISUAL_GRID_SIZE; i++) {
+                // Vertical
+                ctx.beginPath();
+                ctx.moveTo(i * visualCellSize, 0);
+                ctx.lineTo(i * visualCellSize, canvas.height);
+                ctx.stroke();
+                // Horizontal
+                ctx.beginPath();
+                ctx.moveTo(0, i * visualCellSize);
+                ctx.lineTo(canvas.width, i * visualCellSize);
+                ctx.stroke();
+            }
+        }
+
+        // Draw a triangular tile - EXACT COPY from original
+        function drawTile(r, c, color) {
+            const visualY = Math.floor(r / 2);
+            const visualX = Math.floor(c / 2);
+            const x0 = visualX * visualCellSize;
+            const y0 = visualY * visualCellSize;
+            const x1 = (visualX + 1) * visualCellSize;
+            const y1 = (visualY + 1) * visualCellSize;
+            const tl = { x: x0, y: y0 }; 
+            const tr = { x: x1, y: y0 };
+            const bl = { x: x0, y: y1 }; 
+            const br = { x: x1, y: y1 }; 
+            let points = [];
+            const isRowEven = r % 2 === 0;
+            const isColEven = c % 2 === 0;
+
+            if (isRowEven && isColEven) {
+                points = [tl, tr, bl];
+            } else if (isRowEven && !isColEven) { 
+                points = [tr, br, tl]; 
+            } else if (!isRowEven && isColEven) { 
+                points = [bl, tl, br];
+            } else {
+                points = [br, bl, tr];
+            }
+
+            ctx.fillStyle = colors[color];
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            ctx.lineTo(points[1].x, points[1].y);
+            ctx.lineTo(points[2].x, points[2].y);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Load games from JSON file
+        function loadGames(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    games = JSON.parse(e.target.result);
+                    displayGameList();
+                    updateStats();
+                    if (games.length > 0) {
+                        selectGame(0);
+                    }
+                } catch (error) {
+                    alert('Error loading games: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Update statistics
+        function updateStats() {
+            const stats = document.getElementById('stats');
+            if (games.length === 0) {
+                stats.textContent = 'No games loaded';
+                return;
+            }
+
+            const redWins = games.filter(g => g.winner === RED).length;
+            const blueWins = games.filter(g => g.winner === BLUE).length;
+            const ties = games.filter(g => g.winner === null).length;
+            
+            stats.innerHTML = `
+                <strong>${games.length} games</strong><br>
+                Red wins: ${redWins} (${(100*redWins/games.length).toFixed(1)}%)<br>
+                Blue wins: ${blueWins} (${(100*blueWins/games.length).toFixed(1)}%)<br>
+                Ties: ${ties}
+            `;
+        }
+
+        // Display game list in sidebar
+        function displayGameList() {
+            const gameList = document.getElementById('game-list');
+            gameList.innerHTML = '';
+
+            games.forEach((game, index) => {
+                const li = document.createElement('li');
+                li.className = 'game-item';
+                li.onclick = () => selectGame(index);
+                
+                const winner = game.winner === RED ? 'Red' : 
+                             game.winner === BLUE ? 'Blue' : 'Tie';
+                
+                li.innerHTML = `
+                    Game ${index + 1} - ${winner}
+                    <div class="score">R: ${game.final_scores.red} | B: ${game.final_scores.blue}</div>
+                `;
+                
+                gameList.appendChild(li);
+            });
+        }
+
+        // Select and load a game
+        function selectGame(index) {
+            currentGameIndex = index;
+            currentGame = games[index];
+            currentMoveIndex = 0;
+            
+            // Update UI
+            document.querySelectorAll('.game-item').forEach((item, i) => {
+                item.classList.toggle('active', i === index);
+            });
+            
+            // Setup move slider
+            const slider = document.getElementById('move-slider');
+            slider.max = currentGame.moves.length;
+            slider.value = 0;
+            
+            // Reset board and display
+            initBoard();
+            updateDisplay();
+        }
+
+        // Apply moves up to the current index
+        function applyMovesToIndex(index) {
+            initBoard();
+            
+            for (let i = 0; i < index; i++) {
+                const move = currentGame.moves[i];
+                const [r, c] = move.position;
+                const player = move.player;
+                
+                // Place tile
+                board[r][c] = player;
+                
+                // Block adjacent corners
+                const c_adj = c + (c % 2 === 0 ? 1 : -1);
+                if (c_adj >= 0 && c_adj < LOGICAL_GRID_SIZE) {
+                    if (board[r][c_adj] === EMPTY) {
+                        board[r][c_adj] = BLOCKED;
+                    }
+                }
+                
+                const r_adj = r + (r % 2 === 0 ? 1 : -1);
+                if (r_adj >= 0 && r_adj < LOGICAL_GRID_SIZE) {
+                    if (board[r_adj][c] === EMPTY) {
+                        board[r_adj][c] = BLOCKED;
+                    }
+                }
+            }
+        }
+
+        // Update display
+        function updateDisplay() {
+            if (!currentGame) return;
+            
+            applyMovesToIndex(currentMoveIndex);
+            drawBoard();
+            
+            // Update scores
+            if (currentMoveIndex === 0) {
+                document.getElementById('red-score').textContent = '1';
+                document.getElementById('blue-score').textContent = '1';
+            } else if (currentMoveIndex > 0 && currentMoveIndex <= currentGame.moves.length) {
+                const move = currentGame.moves[currentMoveIndex - 1];
+                // Get score after this move by looking at next move's score_before or final scores
+                if (currentMoveIndex < currentGame.moves.length) {
+                    const nextMove = currentGame.moves[currentMoveIndex];
+                    document.getElementById('red-score').textContent = nextMove.score_before[RED] || nextMove.score_before['1'];
+                    document.getElementById('blue-score').textContent = nextMove.score_before[BLUE] || nextMove.score_before['2'];
+                } else {
+                    document.getElementById('red-score').textContent = currentGame.final_scores.red;
+                    document.getElementById('blue-score').textContent = currentGame.final_scores.blue;
+                }
+            }
+            
+            // Update move info
+            document.getElementById('current-move').textContent = currentMoveIndex;
+            document.getElementById('total-moves').textContent = currentGame.moves.length;
+            
+            // Current player
+            const currentPlayer = currentMoveIndex < currentGame.moves.length ? 
+                (currentGame.moves[currentMoveIndex].player === RED ? 'Red' : 'Blue') : 
+                'Game Over';
+            document.getElementById('current-player').textContent = currentPlayer;
+            
+            // Update slider
+            document.getElementById('move-slider').value = currentMoveIndex;
+            
+            // Update button states
+            document.getElementById('first-btn').disabled = currentMoveIndex === 0;
+            document.getElementById('prev-btn').disabled = currentMoveIndex === 0;
+            document.getElementById('next-btn').disabled = currentMoveIndex >= currentGame.moves.length;
+            document.getElementById('last-btn').disabled = currentMoveIndex >= currentGame.moves.length;
+        }
+
+        // Navigation functions
+        function firstMove() {
+            currentMoveIndex = 0;
+            updateDisplay();
+        }
+
+        function prevMove() {
+            if (currentMoveIndex > 0) {
+                currentMoveIndex--;
+                updateDisplay();
+            }
+        }
+
+        function nextMove() {
+            if (currentGame && currentMoveIndex < currentGame.moves.length) {
+                currentMoveIndex++;
+                updateDisplay();
+            }
+        }
+
+        function lastMove() {
+            if (currentGame) {
+                currentMoveIndex = currentGame.moves.length;
+                updateDisplay();
+            }
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                stopPlay();
+            } else {
+                startPlay();
+            }
+        }
+
+        function startPlay() {
+            if (!currentGame || currentMoveIndex >= currentGame.moves.length) {
+                currentMoveIndex = 0;
+            }
+            
+            isPlaying = true;
+            document.getElementById('play-btn').textContent = '⏸️';
+            
+            playInterval = setInterval(() => {
+                if (currentMoveIndex >= currentGame.moves.length) {
+                    stopPlay();
+                } else {
+                    nextMove();
+                }
+            }, 500); // 500ms per move
+        }
+
+        function stopPlay() {
+            isPlaying = false;
+            document.getElementById('play-btn').textContent = '▶️';
+            if (playInterval) {
+                clearInterval(playInterval);
+                playInterval = null;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('file-input').addEventListener('change', loadGames);
+        document.getElementById('first-btn').addEventListener('click', firstMove);
+        document.getElementById('prev-btn').addEventListener('click', prevMove);
+        document.getElementById('next-btn').addEventListener('click', nextMove);
+        document.getElementById('last-btn').addEventListener('click', lastMove);
+        document.getElementById('play-btn').addEventListener('click', togglePlay);
+        
+        document.getElementById('move-slider').addEventListener('input', (e) => {
+            currentMoveIndex = parseInt(e.target.value);
+            updateDisplay();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!currentGame) return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    prevMove();
+                    break;
+                case 'ArrowRight':
+                    nextMove();
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'Home':
+                    firstMove();
+                    break;
+                case 'End':
+                    lastMove();
+                    break;
+            }
+        });
+
+        // Initialize
+        initBoard();
+        drawBoard();
+    </script>
+</body>
+</html>

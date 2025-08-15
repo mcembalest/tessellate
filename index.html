@@ -193,24 +193,21 @@
     </div>
 
     <div class="rules" id="rules-panel">
-         <p>1. A player's turn consists of placing a tile with their color on the board.</p>
-         <p>2. A tile fills one half of a square with a right triangle.</p>
-         <p>3. Tiles may not be placed on top of each other.</p>
-         <p>4. Tiles of the same color that border each other form an island.</p>
-         <p>5. The size of an island is the number of tiles in it.</p>
-         <p>6. A player's score is the product of their islands (the result of multiplying all their island sizes together).</p>
-         <p>7. The game ends when all the squares are filled.</p>
-         <p>8. The player with the highest score at the end of the game wins.</p>
-         <p>Note that a player's score may not always increase.</p>
+         <p>1. A <strong>turn</strong> consists of a player placing a tile with their color on the board.</p>
+         <p>2. A <strong>tile</strong> is a right triangle that fills one half of a square on the board.</p>
+         <p>3. A <strong>valid tile placement</strong> does not overlap with any tiles on the board. Thus if a square is empty, there are four ways to place a tile in it. But if a square already has one tile in it, there is only one valid way to fill it. In other words, choosing a corner of a square to place your tile in prevents you and your opponent from using the two adjacent corners in that square.</p>
+         <p>4. An <strong>island</strong> is formed by any number of tiles of the same color connected by a full edge.</p>
+         <p>5. The <strong>size of an island</strong> is the number of tiles in it.</p>
+         <p>6. A <strong>player's score</strong> is the product of all their islands (the multiplication of their islands' sizes).</p>
+         <p>7. The <strong>end of the game</strong> is when all the squares are filled and no more tiles can be placed.</p>
+         <p>8. The <strong>winner</strong> is the player with the highest score at the end of the game.</p>
      </div>
 
     <div id="controls">
         <button id="new-game-btn">New Game</button>
         <button id="rules-btn">Rules</button>
-        <button id="undo-btn">Undo</button>
     </div>
 
-     
     <footer>
         © 2025 Max Cembalest
     </footer>
