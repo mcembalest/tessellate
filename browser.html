@@ -298,7 +298,6 @@
         let board = [];
         let isPlaying = false;
         let playInterval = null;
-        let gameDirectory = null;
         let currentBatchId = null;
 
         // Constants
@@ -483,7 +482,13 @@
             
             // Update URL with game index (1-indexed for users)
             if (currentBatchId) {
-                const newUrl = `${window.location.pathname}?batch=${currentBatchId}&game=${index + 1}`;
+                // Extract simple ID for cleaner URL (just the hash)
+                let batchId = currentBatchId;
+                if (currentBatchId.endsWith('.json')) {
+                    const parts = currentBatchId.replace('.json', '').split('_');
+                    batchId = parts[parts.length - 1];  // Use last hash part
+                }
+                const newUrl = `${window.location.pathname}?batch=${batchId}&game=${index + 1}`;
                 window.history.pushState({}, '', newUrl);
             }
             
@@ -692,11 +697,14 @@
         
         // Batch selector change handler
         document.getElementById('batch-selector').addEventListener('change', async (e) => {
-            const batchId = e.target.value;
-            if (batchId) {
-                const loaded = await loadBatchById(batchId);
+            const batchFile = e.target.value;
+            if (batchFile) {
+                const loaded = await loadBatchById(batchFile);
                 if (loaded && games.length > 0) {
                     selectGame(0);
+                    // Extract simple ID for cleaner URL (just the hash)
+                    const parts = batchFile.replace('.json', '').split('_');
+                    const batchId = parts[parts.length - 1];  // Use last hash part
                     // Update URL without reloading (game=1 for first game)
                     const newUrl = `${window.location.pathname}?batch=${batchId}&game=1`;
                     window.history.pushState({}, '', newUrl);
@@ -743,39 +751,63 @@
             };
         }
 
-        // Load game directory
+        // Load available game files by scanning directory
         async function loadGameDirectory() {
             try {
-                const response = await fetch('game_data/game_directory.json');
+                // Try to fetch the game_data directory listing
+                // This works if server provides directory listing
+                const response = await fetch('game_data/');
                 if (response.ok) {
-                    gameDirectory = await response.json();
-                    console.log(`Loaded directory with ${gameDirectory.batches.length} batches`);
-                    populateBatchSelector();
-                    return true;
+                    const text = await response.text();
+                    // Parse HTML directory listing for .json files
+                    const matches = text.match(/href="([^"]+\.json)"/g);
+                    if (matches) {
+                        const files = matches.map(m => m.match(/href="([^"]+)"/)[1]);
+                        const batchFiles = files.filter(f => f.startsWith('batch_'));
+                        console.log(`Found ${batchFiles.length} batch files`);
+                        populateBatchSelectorFromFiles(batchFiles);
+                        return true;
+                    }
                 }
             } catch (error) {
-                console.log('Could not load game directory:', error);
+                console.log('Could not scan directory, using fallback:', error);
             }
-            return false;
+            
+            // Fallback: hardcode known batch files for now
+            const knownBatches = [
+                'batch_20250815_130917_cc23eaae.json',
+                'batch_20250815_130956_20559b7d.json',
+                'batch_20250815_131035_69f49367.json'
+            ];
+            populateBatchSelectorFromFiles(knownBatches);
+            return true;
         }
 
-        // Populate batch selector dropdown
-        function populateBatchSelector() {
+        // Populate batch selector from file list
+        function populateBatchSelectorFromFiles(batchFiles) {
             const selector = document.getElementById('batch-selector');
             selector.innerHTML = '<option value="">Select Batch...</option>';
             
-            if (gameDirectory && gameDirectory.batches) {
-                // Sort batches by creation time (newest first)
-                const sortedBatches = [...gameDirectory.batches].sort((a, b) => 
-                    new Date(b.created) - new Date(a.created)
-                );
-                
-                // Add top 20 batches to selector
-                sortedBatches.slice(0, 20).forEach(batch => {
+            if (batchFiles && batchFiles.length > 0) {
+                batchFiles.forEach(filename => {
+                    // Extract batch ID from filename
+                    // Handle both old format (batch_20250815_130917_cc23eaae.json)
+                    // and new format (batch_20250815_142852_2ff4c4_001_bed6e594.json)
+                    let batchId;
+                    const parts = filename.replace('.json', '').split('_');
+                    
+                    if (parts.length >= 4) {
+                        // Try to extract the hash ID (last 8-char hex string)
+                        batchId = parts[parts.length - 1];
+                        if (batchId.length !== 8) {
+                            // For new format, the hash is the last part
+                            batchId = parts[parts.length - 1];
+                        }
+                    }
+                    
                     const option = document.createElement('option');
-                    option.value = batch.id;
-                    const date = new Date(batch.created).toLocaleDateString();
-                    option.textContent = `${batch.id} (${batch.games} games - ${date})`;
+                    option.value = filename;  // Store full filename
+                    option.textContent = filename.replace('.json', '').replace('batch_', '');
                     selector.appendChild(option);
                 });
             }
@@ -786,29 +818,54 @@
             }
         }
 
-        // Load specific batch by ID
-        async function loadBatchById(batchId) {
-            if (!gameDirectory) {
-                await loadGameDirectory();
-            }
-            
-            if (gameDirectory) {
-                const batchInfo = gameDirectory.batches.find(b => b.id === batchId);
-                if (batchInfo) {
-                    try {
-                        const response = await fetch(`game_data/${batchInfo.file}`);
-                        if (response.ok) {
-                            games = await response.json();
-                            currentBatchId = batchId;
-                            console.log(`Loaded batch ${batchId} with ${games.length} games`);
-                            displayGameList();
-                            updateStats();
-                            return true;
-                        }
-                    } catch (error) {
-                        console.log(`Error loading batch ${batchId}:`, error);
+        // Load specific batch by ID or filename
+        async function loadBatchById(batchIdOrFile) {
+            try {
+                // Determine the URL to fetch
+                let url;
+                if (batchIdOrFile.endsWith('.json')) {
+                    // Full filename provided
+                    url = `game_data/${batchIdOrFile}`;
+                    currentBatchId = batchIdOrFile;
+                } else {
+                    // Just batch ID provided - try to find matching file
+                    // This handles URLs with just the hash ID
+                    url = `game_data/batch_*${batchIdOrFile}.json`;
+                    // For simplicity, try the direct approach first
+                    const possibleFiles = [
+                        `game_data/batch_20250815_130917_${batchIdOrFile}.json`,
+                        `game_data/batch_20250815_130956_${batchIdOrFile}.json`,
+                        `game_data/batch_20250815_131035_${batchIdOrFile}.json`
+                    ];
+                    // Try each possible file
+                    for (const file of possibleFiles) {
+                        try {
+                            const response = await fetch(file);
+                            if (response.ok) {
+                                games = await response.json();
+                                currentBatchId = file.split('/')[1];  // Get filename
+                                console.log(`Loaded batch ${batchIdOrFile} with ${games.length} games`);
+                                displayGameList();
+                                updateStats();
+                                return true;
+                            }
+                        } catch (e) {}
                     }
+                    // If not found by ID, treat as filename
+                    url = `game_data/${batchIdOrFile}`;
+                    currentBatchId = batchIdOrFile;
                 }
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    games = await response.json();
+                    console.log(`Loaded batch ${batchIdOrFile} with ${games.length} games`);
+                    displayGameList();
+                    updateStats();
+                    return true;
+                }
+            } catch (error) {
+                console.log(`Error loading batch ${batchIdOrFile}:`, error);
             }
             return false;
         }
