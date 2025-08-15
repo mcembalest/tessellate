@@ -335,7 +335,7 @@
             </div>
             <div class="move-info">
                 Move <span id="current-move">0</span> / <span id="total-moves">0</span>
-                | <span id="current-player">-</span>'s turn
+                | <span id="current-player">-</span><span id="turn-text"></span>
             </div>
         </div>
 
@@ -344,9 +344,15 @@
         </div>
 
         <div class="main-sparkline-container">
-            <div class="sparkline-label">Score Momentum</div>
+            <div class="sparkline-label">Score</div>
             <canvas id="main-sparkline" width="300" height="100"></canvas>
             <div class="sparkline-label">Red ↑ / Blue ↓</div>
+        </div>
+
+        <div class="shortcuts">
+            ← → Arrow keys: Navigate moves<br>
+            Space: Play/Pause<br>
+            Home/End: First/Last move
         </div>
 
         <div class="controls">
@@ -361,11 +367,7 @@
         </div>
     </div>
 
-    <div class="shortcuts">
-        ← → Arrow keys: Navigate moves<br>
-        Space: Play/Pause<br>
-        Home/End: First/Last move
-    </div>
+    
 
     <script>
         // Game state
@@ -787,7 +789,7 @@
             const currentPlayer = currentMoveIndex < currentGame.moves.length ? 
                 (currentGame.moves[currentMoveIndex].player === RED ? 'Red' : 'Blue') : 
                 'Game Over';
-            document.getElementById('current-player').textContent = currentPlayer;
+            document.getElementById('current-player').textContent = currentPlayer === 'Game Over' ? currentPlayer : `${currentPlayer}'s turn`;
             
             // Update slider
             document.getElementById('move-slider').value = currentMoveIndex;
