@@ -634,35 +634,29 @@
 
         // Load sample games function (auto-loads default games)
         async function loadSampleGames() {
-            // In production, this URL would point to your server
-            const PRODUCTION_DATA_URL = 'https://your-server.com/api/games/1000';
-            const DEVELOPMENT_DATA_URL = 'game_data/random_games_1000.json';
+            const possibleUrls = [
+                'game_data/random_games_1000.json',  // Local development
+                'random_games_1000.json',             // GitHub Pages (file in root)
+                '../random_games_1000.json'           // Alternative path
+            ];
             
-            // Check if we're running from file:// protocol (local development)
-            const isFileProtocol = window.location.protocol === 'file:';
-            
-            // Check if we're on localhost (local server development)
-            const isLocalhost = window.location.hostname === 'localhost' || 
-                               window.location.hostname === '127.0.0.1';
-            
-            // Determine which URL to use
-            const dataUrl = (isFileProtocol || isLocalhost) ? DEVELOPMENT_DATA_URL : PRODUCTION_DATA_URL;
-            
-            try {
-                // Try to fetch the data
-                const response = await fetch(dataUrl);
-                if (response.ok) {
-                    games = await response.json();
-                    console.log(`Loaded ${games.length} games from ${dataUrl}`);
-                    displayGameList();
-                    updateStats();
-                    if (games.length > 0) {
-                        selectGame(0);
+            // Try each possible URL until one works
+            for (const url of possibleUrls) {
+                try {
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        games = await response.json();
+                        console.log(`Loaded ${games.length} games from ${url}`);
+                        displayGameList();
+                        updateStats();
+                        if (games.length > 0) {
+                            selectGame(0);
+                        }
+                        return;
                     }
-                    return;
+                } catch (error) {
+                    console.log(`Could not load from ${url}:`, error);
                 }
-            } catch (error) {
-                console.log(`Could not load from ${dataUrl}:`, error);
             }
             
             
@@ -752,35 +746,40 @@
             };
         }
 
-        // Load available game files by scanning directory
+        // Load available game files
         async function loadGameDirectory() {
-            try {
-                // Try to fetch the game_data directory listing
-                // This works if server provides directory listing
-                const response = await fetch('game_data/');
-                if (response.ok) {
-                    const text = await response.text();
-                    // Parse HTML directory listing for .json files
-                    const matches = text.match(/href="([^"]+\.json)"/g);
-                    if (matches) {
-                        const files = matches.map(m => m.match(/href="([^"]+)"/)[1]);
-                        const batchFiles = files.filter(f => f.startsWith('batch_'));
-                        console.log(`Found ${batchFiles.length} batch files`);
-                        populateBatchSelectorFromFiles(batchFiles);
-                        return true;
+            // For GitHub Pages, we can't scan directories
+            // So we'll just hide the batch selector and rely on default games
+            const selector = document.getElementById('batch-selector');
+            
+            // Check if we're on localhost (where directory scanning might work)
+            const isLocalhost = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
+            
+            if (isLocalhost) {
+                try {
+                    // Try to fetch the game_data directory listing
+                    const response = await fetch('game_data/');
+                    if (response.ok) {
+                        const text = await response.text();
+                        // Parse HTML directory listing for .json files
+                        const matches = text.match(/href="([^"]+\.json)"/g);
+                        if (matches) {
+                            const files = matches.map(m => m.match(/href="([^"]+)"/)[1]);
+                            const batchFiles = files.filter(f => f.startsWith('batch_'));
+                            console.log(`Found ${batchFiles.length} batch files`);
+                            populateBatchSelectorFromFiles(batchFiles);
+                            selector.style.display = 'block';
+                            return true;
+                        }
                     }
+                } catch (error) {
+                    console.log('Could not scan directory:', error);
                 }
-            } catch (error) {
-                console.log('Could not scan directory, using fallback:', error);
             }
             
-            // Fallback: hardcode known batch files for now
-            const knownBatches = [
-                'batch_20250815_130917_cc23eaae.json',
-                'batch_20250815_130956_20559b7d.json',
-                'batch_20250815_131035_69f49367.json'
-            ];
-            populateBatchSelectorFromFiles(knownBatches);
+            // For GitHub Pages or if scanning fails, hide the selector
+            selector.style.display = 'none';
             return true;
         }
 

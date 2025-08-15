@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "A strategic board game with multiplicative scoring",
   "scripts": {
-    "start": "npx http-server -p 8000 -o",
-    "dev": "npx http-server -p 8000 -o -c-1",
-    "browser": "npx http-server -p 8000 -o browser.html -c-1",
+    "start": "npx http-server -p 8424 -o",
+    "dev": "npx http-server -p 8424 -o -c-1",
+    "browser": "npx http-server -p 8424 -o browser.html -c-1",
     "vercel-dev": "vercel dev",
     "build": "vercel build",
     "python-server": "python3 start_server.py",
