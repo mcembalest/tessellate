@@ -241,6 +241,9 @@
             <button class="load-btn" onclick="document.getElementById('file-input').click()">
                 Load Custom JSON
             </button>
+            <select class="load-btn" id="batch-selector" style="margin-top: 10px; width: 100%;">
+                <option value="">Select Batch...</option>
+            </select>
             <div class="stats" id="stats">
                 Loading games...
             </div>
@@ -295,6 +298,8 @@
         let board = [];
         let isPlaying = false;
         let playInterval = null;
+        let gameDirectory = null;
+        let currentBatchId = null;
 
         // Constants
         const RED = 1;
@@ -476,6 +481,12 @@
             slider.max = currentGame.moves.length;
             slider.value = 0;
             
+            // Update URL with game index (1-indexed for users)
+            if (currentBatchId) {
+                const newUrl = `${window.location.pathname}?batch=${currentBatchId}&game=${index + 1}`;
+                window.history.pushState({}, '', newUrl);
+            }
+            
             // Reset board and display
             initBoard();
             updateDisplay();
@@ -615,11 +626,11 @@
             }
         }
 
-        // Load sample games function (auto-loads 1000 games)
+        // Load sample games function (auto-loads default games)
         async function loadSampleGames() {
             // In production, this URL would point to your server
             const PRODUCTION_DATA_URL = 'https://your-server.com/api/games/1000';
-            const DEVELOPMENT_DATA_URL = 'random_games_1000.json';
+            const DEVELOPMENT_DATA_URL = 'game_data/random_games_1000.json';
             
             // Check if we're running from file:// protocol (local development)
             const isFileProtocol = window.location.protocol === 'file:';
@@ -648,25 +659,6 @@
                 console.log(`Could not load from ${dataUrl}:`, error);
             }
             
-            // Fallback to smaller files if 1000 not available
-            const fallbackFiles = ['random_games_100.json', 'sample_games_embedded.json'];
-            for (const filename of fallbackFiles) {
-                try {
-                    const response = await fetch(filename);
-                    if (response.ok) {
-                        games = await response.json();
-                        console.log(`Loaded ${games.length} games from ${filename}`);
-                        displayGameList();
-                        updateStats();
-                        if (games.length > 0) {
-                            selectGame(0);
-                        }
-                        return;
-                    }
-                } catch (error) {
-                    console.log(`Could not load ${filename}`);
-                }
-            }
             
             // If no files could be loaded (likely due to CORS when opening via file://)
             console.log('Could not auto-load games. Please use "Load Custom JSON" to load a game file.');
@@ -698,6 +690,20 @@
         document.getElementById('last-btn').addEventListener('click', lastMove);
         document.getElementById('play-btn').addEventListener('click', togglePlay);
         
+        // Batch selector change handler
+        document.getElementById('batch-selector').addEventListener('change', async (e) => {
+            const batchId = e.target.value;
+            if (batchId) {
+                const loaded = await loadBatchById(batchId);
+                if (loaded && games.length > 0) {
+                    selectGame(0);
+                    // Update URL without reloading (game=1 for first game)
+                    const newUrl = `${window.location.pathname}?batch=${batchId}&game=1`;
+                    window.history.pushState({}, '', newUrl);
+                }
+            }
+        });
+        
         document.getElementById('move-slider').addEventListener('input', (e) => {
             currentMoveIndex = parseInt(e.target.value);
             updateDisplay();
@@ -727,12 +733,115 @@
             }
         });
 
+        // Parse URL parameters
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                batch: params.get('batch'),
+                // Convert 1-indexed URL param to 0-indexed array index
+                game: params.get('game') ? parseInt(params.get('game')) - 1 : null
+            };
+        }
+
+        // Load game directory
+        async function loadGameDirectory() {
+            try {
+                const response = await fetch('game_data/game_directory.json');
+                if (response.ok) {
+                    gameDirectory = await response.json();
+                    console.log(`Loaded directory with ${gameDirectory.batches.length} batches`);
+                    populateBatchSelector();
+                    return true;
+                }
+            } catch (error) {
+                console.log('Could not load game directory:', error);
+            }
+            return false;
+        }
+
+        // Populate batch selector dropdown
+        function populateBatchSelector() {
+            const selector = document.getElementById('batch-selector');
+            selector.innerHTML = '<option value="">Select Batch...</option>';
+            
+            if (gameDirectory && gameDirectory.batches) {
+                // Sort batches by creation time (newest first)
+                const sortedBatches = [...gameDirectory.batches].sort((a, b) => 
+                    new Date(b.created) - new Date(a.created)
+                );
+                
+                // Add top 20 batches to selector
+                sortedBatches.slice(0, 20).forEach(batch => {
+                    const option = document.createElement('option');
+                    option.value = batch.id;
+                    const date = new Date(batch.created).toLocaleDateString();
+                    option.textContent = `${batch.id} (${batch.games} games - ${date})`;
+                    selector.appendChild(option);
+                });
+            }
+            
+            // Set current batch as selected
+            if (currentBatchId) {
+                selector.value = currentBatchId;
+            }
+        }
+
+        // Load specific batch by ID
+        async function loadBatchById(batchId) {
+            if (!gameDirectory) {
+                await loadGameDirectory();
+            }
+            
+            if (gameDirectory) {
+                const batchInfo = gameDirectory.batches.find(b => b.id === batchId);
+                if (batchInfo) {
+                    try {
+                        const response = await fetch(`game_data/${batchInfo.file}`);
+                        if (response.ok) {
+                            games = await response.json();
+                            currentBatchId = batchId;
+                            console.log(`Loaded batch ${batchId} with ${games.length} games`);
+                            displayGameList();
+                            updateStats();
+                            return true;
+                        }
+                    } catch (error) {
+                        console.log(`Error loading batch ${batchId}:`, error);
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Initialize app with URL params or defaults
+        async function initializeApp() {
+            const urlParams = getUrlParams();
+            
+            // Load game directory first
+            await loadGameDirectory();
+            
+            // Try to load specific batch if provided
+            if (urlParams.batch) {
+                const loaded = await loadBatchById(urlParams.batch);
+                if (loaded && urlParams.game !== null) {
+                    // Jump to specific game (urlParams.game is already 0-indexed from getUrlParams)
+                    selectGame(urlParams.game);
+                } else if (loaded) {
+                    // Select first game
+                    if (games.length > 0) selectGame(0);
+                }
+            } else {
+                // Default: load random_games_1000.json
+                loadSampleGames();
+            }
+        }
+
         // Initialize
         initBoard();
         drawBoard();
         
-        // Auto-load games on page load
-        loadSampleGames();
+        // Start the app
+        initializeApp();
     </script>
 </body>
 </html>

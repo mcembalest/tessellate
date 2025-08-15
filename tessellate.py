@@ -4,7 +4,6 @@ Tessellate Game Implementation
 Ported from JavaScript to Python for RL training
 """
 
-import numpy as np
 from enum import IntEnum
 from typing import List, Tuple, Optional, Set
 import json
@@ -32,8 +31,8 @@ class TessellateGame:
     
     def reset(self):
         """Initialize/reset the game board"""
-        self.board = np.full((self.LOGICAL_GRID_SIZE, self.LOGICAL_GRID_SIZE), 
-                            TileState.EMPTY, dtype=np.int8)
+        self.board = [[TileState.EMPTY for _ in range(self.LOGICAL_GRID_SIZE)] 
+                      for _ in range(self.LOGICAL_GRID_SIZE)]
         self.current_turn = TileState.RED
         self.scores = {TileState.RED: 1, TileState.BLUE: 1}
         self.game_over = False
@@ -47,7 +46,7 @@ class TessellateGame:
     
     def is_playable(self, r: int, c: int) -> bool:
         """Check if a position is playable (valid and empty)"""
-        return self.is_valid_coord(r, c) and self.board[r, c] == TileState.EMPTY
+        return self.is_valid_coord(r, c) and self.board[r][c] == TileState.EMPTY
     
     def get_valid_moves(self) -> List[Tuple[int, int]]:
         """Get all valid moves for current player"""
@@ -67,20 +66,20 @@ class TessellateGame:
             return False
         
         # Place the tile
-        self.board[r, c] = self.current_turn
+        self.board[r][c] = self.current_turn
         self.placed_tiles_count += 1
         
         # Block horizontally adjacent corner in same square
         c_adj = c + (1 if c % 2 == 0 else -1)
         if self.is_valid_coord(r, c_adj):
-            if self.board[r, c_adj] == TileState.EMPTY:
-                self.board[r, c_adj] = TileState.BLOCKED
+            if self.board[r][c_adj] == TileState.EMPTY:
+                self.board[r][c_adj] = TileState.BLOCKED
         
         # Block vertically adjacent corner in same square  
         r_adj = r + (1 if r % 2 == 0 else -1)
         if self.is_valid_coord(r_adj, c):
-            if self.board[r_adj, c] == TileState.EMPTY:
-                self.board[r_adj, c] = TileState.BLOCKED
+            if self.board[r_adj][c] == TileState.EMPTY:
+                self.board[r_adj][c] = TileState.BLOCKED
         
         return True
     
@@ -117,32 +116,33 @@ class TessellateGame:
     def calculate_scores(self):
         """Calculate scores by finding islands and multiplying their sizes"""
         self.scores = {TileState.RED: 1, TileState.BLUE: 1}
-        visited = np.zeros_like(self.board, dtype=bool)
+        visited = [[False for _ in range(self.LOGICAL_GRID_SIZE)] 
+                   for _ in range(self.LOGICAL_GRID_SIZE)]
         
         for r in range(self.LOGICAL_GRID_SIZE):
             for c in range(self.LOGICAL_GRID_SIZE):
-                color = self.board[r, c]
-                if color in [TileState.RED, TileState.BLUE] and not visited[r, c]:
+                color = self.board[r][c]
+                if color in [TileState.RED, TileState.BLUE] and not visited[r][c]:
                     # Find island size using DFS
                     island_size = self._dfs_island(r, c, color, visited)
                     if island_size > 0:
                         self.scores[color] *= island_size
     
     def _dfs_island(self, start_r: int, start_c: int, color: TileState, 
-                    visited: np.ndarray) -> int:
+                    visited: list) -> int:
         """DFS to find connected component (island) size"""
         stack = [(start_r, start_c)]
         size = 0
         
         while stack:
             r, c = stack.pop()
-            if self.is_valid_coord(r, c) and self.board[r, c] == color and not visited[r, c]:
-                visited[r, c] = True
+            if self.is_valid_coord(r, c) and self.board[r][c] == color and not visited[r][c]:
+                visited[r][c] = True
                 size += 1
                 
                 # Add all neighbors of the same color
                 for nr, nc in self.get_neighbors(r, c):
-                    if self.is_valid_coord(nr, nc) and self.board[nr, nc] == color and not visited[nr, nc]:
+                    if self.is_valid_coord(nr, nc) and self.board[nr][nc] == color and not visited[nr][nc]:
                         stack.append((nr, nc))
         
         return size
@@ -215,7 +215,7 @@ class TessellateGame:
         for r in range(self.LOGICAL_GRID_SIZE):
             row_str = f"{r:2} "
             for c in range(self.LOGICAL_GRID_SIZE):
-                row_str += symbols[self.board[r, c]] + " "
+                row_str += symbols[self.board[r][c]] + " "
             result.append(row_str)
         
         return "\n".join(result)

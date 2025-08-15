@@ -9,7 +9,7 @@
     "vercel-dev": "vercel dev",
     "build": "vercel build",
     "python-server": "python3 start_server.py",
-    "generate-games": "python3 agents.py"
+    "generate-games": "python3 generate_games.py"
   },
   "keywords": ["game", "board-game", "strategy", "tessellate"],
   "author": "Max Cembalest",

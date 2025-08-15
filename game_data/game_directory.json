@@ -1,0 +1,926 @@
+{
+  "version": "1.0",
+  "created": "2025-08-15T14:23:33.403270",
+  "total_games": 1001000,
+  "batches": [
+    {
+      "id": "46a8ecf6",
+      "file": "batch_20250815_141440_46a8ecf6.json",
+      "original_name": "batch_100_10000.json",
+      "batch_number": "100",
+      "games": 10000,
+      "created": "2025-08-15T14:14:40.007253",
+      "size_bytes": 36036724
+    },
+    {
+      "id": "2bfe90e2",
+      "file": "batch_20250815_131514_2bfe90e2.json",
+      "original_name": "batch_10_10000.json",
+      "batch_number": "10",
+      "games": 10000,
+      "created": "2025-08-15T13:15:14.721286",
+      "size_bytes": 36035593
+    },
+    {
+      "id": "d2cd4136",
+      "file": "batch_20250815_131554_d2cd4136.json",
+      "original_name": "batch_11_10000.json",
+      "batch_number": "11",
+      "games": 10000,
+      "created": "2025-08-15T13:15:54.650807",
+      "size_bytes": 36035647
+    },
+    {
+      "id": "461ffd2e",
+      "file": "batch_20250815_131636_461ffd2e.json",
+      "original_name": "batch_12_10000.json",
+      "batch_number": "12",
+      "games": 10000,
+      "created": "2025-08-15T13:16:36.901634",
+      "size_bytes": 36036898
+    },
+    {
+      "id": "8a85ed70",
+      "file": "batch_20250815_131717_8a85ed70.json",
+      "original_name": "batch_13_10000.json",
+      "batch_number": "13",
+      "games": 10000,
+      "created": "2025-08-15T13:17:17.335115",
+      "size_bytes": 36034601
+    },
+    {
+      "id": "fc67fcda",
+      "file": "batch_20250815_131756_fc67fcda.json",
+      "original_name": "batch_14_10000.json",
+      "batch_number": "14",
+      "games": 10000,
+      "created": "2025-08-15T13:17:56.182047",
+      "size_bytes": 36036894
+    },
+    {
+      "id": "8bd3bbb6",
+      "file": "batch_20250815_131836_8bd3bbb6.json",
+      "original_name": "batch_15_10000.json",
+      "batch_number": "15",
+      "games": 10000,
+      "created": "2025-08-15T13:18:36.014760",
+      "size_bytes": 36035993
+    },
+    {
+      "id": "571bfa99",
+      "file": "batch_20250815_131917_571bfa99.json",
+      "original_name": "batch_16_10000.json",
+      "batch_number": "16",
+      "games": 10000,
+      "created": "2025-08-15T13:19:17.620241",
+      "size_bytes": 36034246
+    },
+    {
+      "id": "d063afc3",
+      "file": "batch_20250815_131956_d063afc3.json",
+      "original_name": "batch_17_10000.json",
+      "batch_number": "17",
+      "games": 10000,
+      "created": "2025-08-15T13:19:56.559521",
+      "size_bytes": 36036026
+    },
+    {
+      "id": "9ea2722d",
+      "file": "batch_20250815_132035_9ea2722d.json",
+      "original_name": "batch_18_10000.json",
+      "batch_number": "18",
+      "games": 10000,
+      "created": "2025-08-15T13:20:35.250153",
+      "size_bytes": 36035754
+    },
+    {
+      "id": "142472ef",
+      "file": "batch_20250815_132114_142472ef.json",
+      "original_name": "batch_19_10000.json",
+      "batch_number": "19",
+      "games": 10000,
+      "created": "2025-08-15T13:21:14.268683",
+      "size_bytes": 36038155
+    },
+    {
+      "id": "cc23eaae",
+      "file": "batch_20250815_130917_cc23eaae.json",
+      "original_name": "batch_1_10000.json",
+      "batch_number": "1",
+      "games": 10000,
+      "created": "2025-08-15T13:09:17.146027",
+      "size_bytes": 36036127
+    },
+    {
+      "id": "1246cd5d",
+      "file": "batch_20250815_132155_1246cd5d.json",
+      "original_name": "batch_20_10000.json",
+      "batch_number": "20",
+      "games": 10000,
+      "created": "2025-08-15T13:21:55.277401",
+      "size_bytes": 36035583
+    },
+    {
+      "id": "b6896ef7",
+      "file": "batch_20250815_132234_b6896ef7.json",
+      "original_name": "batch_21_10000.json",
+      "batch_number": "21",
+      "games": 10000,
+      "created": "2025-08-15T13:22:34.435422",
+      "size_bytes": 36034034
+    },
+    {
+      "id": "beffdb4f",
+      "file": "batch_20250815_132313_beffdb4f.json",
+      "original_name": "batch_22_10000.json",
+      "batch_number": "22",
+      "games": 10000,
+      "created": "2025-08-15T13:23:13.889471",
+      "size_bytes": 36033461
+    },
+    {
+      "id": "ac6c2871",
+      "file": "batch_20250815_132352_ac6c2871.json",
+      "original_name": "batch_23_10000.json",
+      "batch_number": "23",
+      "games": 10000,
+      "created": "2025-08-15T13:23:52.722475",
+      "size_bytes": 36035744
+    },
+    {
+      "id": "95685e44",
+      "file": "batch_20250815_132432_95685e44.json",
+      "original_name": "batch_24_10000.json",
+      "batch_number": "24",
+      "games": 10000,
+      "created": "2025-08-15T13:24:32.716687",
+      "size_bytes": 36037322
+    },
+    {
+      "id": "988e94db",
+      "file": "batch_20250815_132515_988e94db.json",
+      "original_name": "batch_25_10000.json",
+      "batch_number": "25",
+      "games": 10000,
+      "created": "2025-08-15T13:25:15.218460",
+      "size_bytes": 36035870
+    },
+    {
+      "id": "d723ab23",
+      "file": "batch_20250815_132556_d723ab23.json",
+      "original_name": "batch_26_10000.json",
+      "batch_number": "26",
+      "games": 10000,
+      "created": "2025-08-15T13:25:56.390308",
+      "size_bytes": 36035113
+    },
+    {
+      "id": "5c7617cf",
+      "file": "batch_20250815_132635_5c7617cf.json",
+      "original_name": "batch_27_10000.json",
+      "batch_number": "27",
+      "games": 10000,
+      "created": "2025-08-15T13:26:35.303262",
+      "size_bytes": 36035437
+    },
+    {
+      "id": "dd7bfc32",
+      "file": "batch_20250815_132714_dd7bfc32.json",
+      "original_name": "batch_28_10000.json",
+      "batch_number": "28",
+      "games": 10000,
+      "created": "2025-08-15T13:27:14.112669",
+      "size_bytes": 36034932
+    },
+    {
+      "id": "d4a16375",
+      "file": "batch_20250815_132752_d4a16375.json",
+      "original_name": "batch_29_10000.json",
+      "batch_number": "29",
+      "games": 10000,
+      "created": "2025-08-15T13:27:52.936306",
+      "size_bytes": 36034321
+    },
+    {
+      "id": "20559b7d",
+      "file": "batch_20250815_130956_20559b7d.json",
+      "original_name": "batch_2_10000.json",
+      "batch_number": "2",
+      "games": 10000,
+      "created": "2025-08-15T13:09:56.478574",
+      "size_bytes": 36036984
+    },
+    {
+      "id": "0f6635c2",
+      "file": "batch_20250815_132831_0f6635c2.json",
+      "original_name": "batch_30_10000.json",
+      "batch_number": "30",
+      "games": 10000,
+      "created": "2025-08-15T13:28:31.590511",
+      "size_bytes": 36036433
+    },
+    {
+      "id": "8769f736",
+      "file": "batch_20250815_132910_8769f736.json",
+      "original_name": "batch_31_10000.json",
+      "batch_number": "31",
+      "games": 10000,
+      "created": "2025-08-15T13:29:10.552341",
+      "size_bytes": 36035475
+    },
+    {
+      "id": "9750576f",
+      "file": "batch_20250815_132952_9750576f.json",
+      "original_name": "batch_32_10000.json",
+      "batch_number": "32",
+      "games": 10000,
+      "created": "2025-08-15T13:29:52.749339",
+      "size_bytes": 36034459
+    },
+    {
+      "id": "624f7a95",
+      "file": "batch_20250815_133031_624f7a95.json",
+      "original_name": "batch_33_10000.json",
+      "batch_number": "33",
+      "games": 10000,
+      "created": "2025-08-15T13:30:31.767932",
+      "size_bytes": 36034852
+    },
+    {
+      "id": "91825812",
+      "file": "batch_20250815_133110_91825812.json",
+      "original_name": "batch_34_10000.json",
+      "batch_number": "34",
+      "games": 10000,
+      "created": "2025-08-15T13:31:10.774197",
+      "size_bytes": 36035279
+    },
+    {
+      "id": "e8becf6e",
+      "file": "batch_20250815_133149_e8becf6e.json",
+      "original_name": "batch_35_10000.json",
+      "batch_number": "35",
+      "games": 10000,
+      "created": "2025-08-15T13:31:49.992998",
+      "size_bytes": 36035786
+    },
+    {
+      "id": "2d8326d6",
+      "file": "batch_20250815_133229_2d8326d6.json",
+      "original_name": "batch_36_10000.json",
+      "batch_number": "36",
+      "games": 10000,
+      "created": "2025-08-15T13:32:29.250077",
+      "size_bytes": 36035359
+    },
+    {
+      "id": "2dbdf64f",
+      "file": "batch_20250815_133310_2dbdf64f.json",
+      "original_name": "batch_37_10000.json",
+      "batch_number": "37",
+      "games": 10000,
+      "created": "2025-08-15T13:33:10.315235",
+      "size_bytes": 36039367
+    },
+    {
+      "id": "f3e38681",
+      "file": "batch_20250815_133349_f3e38681.json",
+      "original_name": "batch_38_10000.json",
+      "batch_number": "38",
+      "games": 10000,
+      "created": "2025-08-15T13:33:49.307939",
+      "size_bytes": 36035289
+    },
+    {
+      "id": "816aed1b",
+      "file": "batch_20250815_133432_816aed1b.json",
+      "original_name": "batch_39_10000.json",
+      "batch_number": "39",
+      "games": 10000,
+      "created": "2025-08-15T13:34:32.277436",
+      "size_bytes": 36034735
+    },
+    {
+      "id": "69f49367",
+      "file": "batch_20250815_131035_69f49367.json",
+      "original_name": "batch_3_10000.json",
+      "batch_number": "3",
+      "games": 10000,
+      "created": "2025-08-15T13:10:35.904031",
+      "size_bytes": 36036009
+    },
+    {
+      "id": "38fad42a",
+      "file": "batch_20250815_133511_38fad42a.json",
+      "original_name": "batch_40_10000.json",
+      "batch_number": "40",
+      "games": 10000,
+      "created": "2025-08-15T13:35:11.212348",
+      "size_bytes": 36035368
+    },
+    {
+      "id": "0c8a5965",
+      "file": "batch_20250815_133550_0c8a5965.json",
+      "original_name": "batch_41_10000.json",
+      "batch_number": "41",
+      "games": 10000,
+      "created": "2025-08-15T13:35:50.435950",
+      "size_bytes": 36036144
+    },
+    {
+      "id": "29a32cdb",
+      "file": "batch_20250815_133630_29a32cdb.json",
+      "original_name": "batch_42_10000.json",
+      "batch_number": "42",
+      "games": 10000,
+      "created": "2025-08-15T13:36:30.371099",
+      "size_bytes": 36033992
+    },
+    {
+      "id": "58ae5c23",
+      "file": "batch_20250815_133710_58ae5c23.json",
+      "original_name": "batch_43_10000.json",
+      "batch_number": "43",
+      "games": 10000,
+      "created": "2025-08-15T13:37:10.315438",
+      "size_bytes": 36036073
+    },
+    {
+      "id": "8a906cfe",
+      "file": "batch_20250815_133749_8a906cfe.json",
+      "original_name": "batch_44_10000.json",
+      "batch_number": "44",
+      "games": 10000,
+      "created": "2025-08-15T13:37:49.426928",
+      "size_bytes": 36036116
+    },
+    {
+      "id": "e37e4153",
+      "file": "batch_20250815_133828_e37e4153.json",
+      "original_name": "batch_45_10000.json",
+      "batch_number": "45",
+      "games": 10000,
+      "created": "2025-08-15T13:38:28.457143",
+      "size_bytes": 36036200
+    },
+    {
+      "id": "1ed76d3c",
+      "file": "batch_20250815_133907_1ed76d3c.json",
+      "original_name": "batch_46_10000.json",
+      "batch_number": "46",
+      "games": 10000,
+      "created": "2025-08-15T13:39:07.374074",
+      "size_bytes": 36032979
+    },
+    {
+      "id": "61a2b299",
+      "file": "batch_20250815_133946_61a2b299.json",
+      "original_name": "batch_47_10000.json",
+      "batch_number": "47",
+      "games": 10000,
+      "created": "2025-08-15T13:39:46.398534",
+      "size_bytes": 36035163
+    },
+    {
+      "id": "339fa215",
+      "file": "batch_20250815_134025_339fa215.json",
+      "original_name": "batch_48_10000.json",
+      "batch_number": "48",
+      "games": 10000,
+      "created": "2025-08-15T13:40:25.287155",
+      "size_bytes": 36036223
+    },
+    {
+      "id": "a646d099",
+      "file": "batch_20250815_134109_a646d099.json",
+      "original_name": "batch_49_10000.json",
+      "batch_number": "49",
+      "games": 10000,
+      "created": "2025-08-15T13:41:09.229368",
+      "size_bytes": 36036434
+    },
+    {
+      "id": "76f131d6",
+      "file": "batch_20250815_131118_76f131d6.json",
+      "original_name": "batch_4_10000.json",
+      "batch_number": "4",
+      "games": 10000,
+      "created": "2025-08-15T13:11:18.887269",
+      "size_bytes": 36034863
+    },
+    {
+      "id": "3b120a21",
+      "file": "batch_20250815_134148_3b120a21.json",
+      "original_name": "batch_50_10000.json",
+      "batch_number": "50",
+      "games": 10000,
+      "created": "2025-08-15T13:41:48.244726",
+      "size_bytes": 36036782
+    },
+    {
+      "id": "013b44ca",
+      "file": "batch_20250815_134227_013b44ca.json",
+      "original_name": "batch_51_10000.json",
+      "batch_number": "51",
+      "games": 10000,
+      "created": "2025-08-15T13:42:27.276616",
+      "size_bytes": 36033631
+    },
+    {
+      "id": "4316314c",
+      "file": "batch_20250815_134306_4316314c.json",
+      "original_name": "batch_52_10000.json",
+      "batch_number": "52",
+      "games": 10000,
+      "created": "2025-08-15T13:43:06.401484",
+      "size_bytes": 36037395
+    },
+    {
+      "id": "c407af7d",
+      "file": "batch_20250815_134345_c407af7d.json",
+      "original_name": "batch_53_10000.json",
+      "batch_number": "53",
+      "games": 10000,
+      "created": "2025-08-15T13:43:45.704759",
+      "size_bytes": 36036659
+    },
+    {
+      "id": "eaf18b36",
+      "file": "batch_20250815_134424_eaf18b36.json",
+      "original_name": "batch_54_10000.json",
+      "batch_number": "54",
+      "games": 10000,
+      "created": "2025-08-15T13:44:24.933260",
+      "size_bytes": 36035240
+    },
+    {
+      "id": "1e5dcc02",
+      "file": "batch_20250815_134504_1e5dcc02.json",
+      "original_name": "batch_55_10000.json",
+      "batch_number": "55",
+      "games": 10000,
+      "created": "2025-08-15T13:45:04.063966",
+      "size_bytes": 36037003
+    },
+    {
+      "id": "fb5afef9",
+      "file": "batch_20250815_134543_fb5afef9.json",
+      "original_name": "batch_56_10000.json",
+      "batch_number": "56",
+      "games": 10000,
+      "created": "2025-08-15T13:45:43.194413",
+      "size_bytes": 36034618
+    },
+    {
+      "id": "3c662903",
+      "file": "batch_20250815_134622_3c662903.json",
+      "original_name": "batch_57_10000.json",
+      "batch_number": "57",
+      "games": 10000,
+      "created": "2025-08-15T13:46:22.157745",
+      "size_bytes": 36035453
+    },
+    {
+      "id": "0322cc08",
+      "file": "batch_20250815_134701_0322cc08.json",
+      "original_name": "batch_58_10000.json",
+      "batch_number": "58",
+      "games": 10000,
+      "created": "2025-08-15T13:47:01.234946",
+      "size_bytes": 36035278
+    },
+    {
+      "id": "d6607b6b",
+      "file": "batch_20250815_134740_d6607b6b.json",
+      "original_name": "batch_59_10000.json",
+      "batch_number": "59",
+      "games": 10000,
+      "created": "2025-08-15T13:47:40.361948",
+      "size_bytes": 36033846
+    },
+    {
+      "id": "4d12839e",
+      "file": "batch_20250815_131158_4d12839e.json",
+      "original_name": "batch_5_10000.json",
+      "batch_number": "5",
+      "games": 10000,
+      "created": "2025-08-15T13:11:58.134585",
+      "size_bytes": 36035735
+    },
+    {
+      "id": "7b7006fb",
+      "file": "batch_20250815_134819_7b7006fb.json",
+      "original_name": "batch_60_10000.json",
+      "batch_number": "60",
+      "games": 10000,
+      "created": "2025-08-15T13:48:19.386153",
+      "size_bytes": 36034655
+    },
+    {
+      "id": "260b70ca",
+      "file": "batch_20250815_134905_260b70ca.json",
+      "original_name": "batch_61_10000.json",
+      "batch_number": "61",
+      "games": 10000,
+      "created": "2025-08-15T13:49:05.914518",
+      "size_bytes": 36037294
+    },
+    {
+      "id": "8e9bb512",
+      "file": "batch_20250815_134947_8e9bb512.json",
+      "original_name": "batch_62_10000.json",
+      "batch_number": "62",
+      "games": 10000,
+      "created": "2025-08-15T13:49:47.734493",
+      "size_bytes": 36035053
+    },
+    {
+      "id": "f824a0ce",
+      "file": "batch_20250815_135030_f824a0ce.json",
+      "original_name": "batch_63_10000.json",
+      "batch_number": "63",
+      "games": 10000,
+      "created": "2025-08-15T13:50:30.016722",
+      "size_bytes": 36035301
+    },
+    {
+      "id": "90d199fd",
+      "file": "batch_20250815_135111_90d199fd.json",
+      "original_name": "batch_64_10000.json",
+      "batch_number": "64",
+      "games": 10000,
+      "created": "2025-08-15T13:51:11.278320",
+      "size_bytes": 36034153
+    },
+    {
+      "id": "674ffce9",
+      "file": "batch_20250815_135155_674ffce9.json",
+      "original_name": "batch_65_10000.json",
+      "batch_number": "65",
+      "games": 10000,
+      "created": "2025-08-15T13:51:55.568186",
+      "size_bytes": 36034565
+    },
+    {
+      "id": "afb5e731",
+      "file": "batch_20250815_135241_afb5e731.json",
+      "original_name": "batch_66_10000.json",
+      "batch_number": "66",
+      "games": 10000,
+      "created": "2025-08-15T13:52:41.893946",
+      "size_bytes": 36036789
+    },
+    {
+      "id": "14122d39",
+      "file": "batch_20250815_135321_14122d39.json",
+      "original_name": "batch_67_10000.json",
+      "batch_number": "67",
+      "games": 10000,
+      "created": "2025-08-15T13:53:21.087013",
+      "size_bytes": 36034713
+    },
+    {
+      "id": "4c0cb275",
+      "file": "batch_20250815_135400_4c0cb275.json",
+      "original_name": "batch_68_10000.json",
+      "batch_number": "68",
+      "games": 10000,
+      "created": "2025-08-15T13:54:00.371508",
+      "size_bytes": 36035881
+    },
+    {
+      "id": "d20f7c4e",
+      "file": "batch_20250815_135439_d20f7c4e.json",
+      "original_name": "batch_69_10000.json",
+      "batch_number": "69",
+      "games": 10000,
+      "created": "2025-08-15T13:54:39.406492",
+      "size_bytes": 36035798
+    },
+    {
+      "id": "377a92a8",
+      "file": "batch_20250815_131237_377a92a8.json",
+      "original_name": "batch_6_10000.json",
+      "batch_number": "6",
+      "games": 10000,
+      "created": "2025-08-15T13:12:37.548056",
+      "size_bytes": 36036169
+    },
+    {
+      "id": "a779866c",
+      "file": "batch_20250815_135518_a779866c.json",
+      "original_name": "batch_70_10000.json",
+      "batch_number": "70",
+      "games": 10000,
+      "created": "2025-08-15T13:55:18.608206",
+      "size_bytes": 36035351
+    },
+    {
+      "id": "c7b4211d",
+      "file": "batch_20250815_135557_c7b4211d.json",
+      "original_name": "batch_71_10000.json",
+      "batch_number": "71",
+      "games": 10000,
+      "created": "2025-08-15T13:55:57.627895",
+      "size_bytes": 36037611
+    },
+    {
+      "id": "43d88940",
+      "file": "batch_20250815_135636_43d88940.json",
+      "original_name": "batch_72_10000.json",
+      "batch_number": "72",
+      "games": 10000,
+      "created": "2025-08-15T13:56:36.662789",
+      "size_bytes": 36034963
+    },
+    {
+      "id": "dadb4682",
+      "file": "batch_20250815_135715_dadb4682.json",
+      "original_name": "batch_73_10000.json",
+      "batch_number": "73",
+      "games": 10000,
+      "created": "2025-08-15T13:57:15.597371",
+      "size_bytes": 36037076
+    },
+    {
+      "id": "3058f07e",
+      "file": "batch_20250815_135754_3058f07e.json",
+      "original_name": "batch_74_10000.json",
+      "batch_number": "74",
+      "games": 10000,
+      "created": "2025-08-15T13:57:54.075986",
+      "size_bytes": 36036887
+    },
+    {
+      "id": "2d246cf9",
+      "file": "batch_20250815_135832_2d246cf9.json",
+      "original_name": "batch_75_10000.json",
+      "batch_number": "75",
+      "games": 10000,
+      "created": "2025-08-15T13:58:32.499380",
+      "size_bytes": 36034376
+    },
+    {
+      "id": "62b2d83a",
+      "file": "batch_20250815_135918_62b2d83a.json",
+      "original_name": "batch_76_10000.json",
+      "batch_number": "76",
+      "games": 10000,
+      "created": "2025-08-15T13:59:18.371102",
+      "size_bytes": 36035549
+    },
+    {
+      "id": "eef65102",
+      "file": "batch_20250815_135956_eef65102.json",
+      "original_name": "batch_77_10000.json",
+      "batch_number": "77",
+      "games": 10000,
+      "created": "2025-08-15T13:59:56.375901",
+      "size_bytes": 36037308
+    },
+    {
+      "id": "43b2aef2",
+      "file": "batch_20250815_140034_43b2aef2.json",
+      "original_name": "batch_78_10000.json",
+      "batch_number": "78",
+      "games": 10000,
+      "created": "2025-08-15T14:00:34.310941",
+      "size_bytes": 36035949
+    },
+    {
+      "id": "46757d26",
+      "file": "batch_20250815_140112_46757d26.json",
+      "original_name": "batch_79_10000.json",
+      "batch_number": "79",
+      "games": 10000,
+      "created": "2025-08-15T14:01:12.260180",
+      "size_bytes": 36033941
+    },
+    {
+      "id": "e7cac9ca",
+      "file": "batch_20250815_131317_e7cac9ca.json",
+      "original_name": "batch_7_10000.json",
+      "batch_number": "7",
+      "games": 10000,
+      "created": "2025-08-15T13:13:17.150124",
+      "size_bytes": 36034982
+    },
+    {
+      "id": "082afa45",
+      "file": "batch_20250815_140150_082afa45.json",
+      "original_name": "batch_80_10000.json",
+      "batch_number": "80",
+      "games": 10000,
+      "created": "2025-08-15T14:01:50.120300",
+      "size_bytes": 36035358
+    },
+    {
+      "id": "a8350234",
+      "file": "batch_20250815_140228_a8350234.json",
+      "original_name": "batch_81_10000.json",
+      "batch_number": "81",
+      "games": 10000,
+      "created": "2025-08-15T14:02:28.149094",
+      "size_bytes": 36036227
+    },
+    {
+      "id": "b8d41d0b",
+      "file": "batch_20250815_140306_b8d41d0b.json",
+      "original_name": "batch_82_10000.json",
+      "batch_number": "82",
+      "games": 10000,
+      "created": "2025-08-15T14:03:06.009617",
+      "size_bytes": 36035420
+    },
+    {
+      "id": "3ac6e9b9",
+      "file": "batch_20250815_140343_3ac6e9b9.json",
+      "original_name": "batch_83_10000.json",
+      "batch_number": "83",
+      "games": 10000,
+      "created": "2025-08-15T14:03:43.991728",
+      "size_bytes": 36036455
+    },
+    {
+      "id": "6a2b1524",
+      "file": "batch_20250815_140421_6a2b1524.json",
+      "original_name": "batch_84_10000.json",
+      "batch_number": "84",
+      "games": 10000,
+      "created": "2025-08-15T14:04:21.916829",
+      "size_bytes": 36035009
+    },
+    {
+      "id": "004abe81",
+      "file": "batch_20250815_140459_004abe81.json",
+      "original_name": "batch_85_10000.json",
+      "batch_number": "85",
+      "games": 10000,
+      "created": "2025-08-15T14:04:59.900864",
+      "size_bytes": 36035882
+    },
+    {
+      "id": "fd719404",
+      "file": "batch_20250815_140537_fd719404.json",
+      "original_name": "batch_86_10000.json",
+      "batch_number": "86",
+      "games": 10000,
+      "created": "2025-08-15T14:05:37.945050",
+      "size_bytes": 36036990
+    },
+    {
+      "id": "077757b1",
+      "file": "batch_20250815_140615_077757b1.json",
+      "original_name": "batch_87_10000.json",
+      "batch_number": "87",
+      "games": 10000,
+      "created": "2025-08-15T14:06:15.838844",
+      "size_bytes": 36036897
+    },
+    {
+      "id": "59a1327f",
+      "file": "batch_20250815_140653_59a1327f.json",
+      "original_name": "batch_88_10000.json",
+      "batch_number": "88",
+      "games": 10000,
+      "created": "2025-08-15T14:06:53.789280",
+      "size_bytes": 36036406
+    },
+    {
+      "id": "f99a9b3a",
+      "file": "batch_20250815_140731_f99a9b3a.json",
+      "original_name": "batch_89_10000.json",
+      "batch_number": "89",
+      "games": 10000,
+      "created": "2025-08-15T14:07:31.806622",
+      "size_bytes": 36036801
+    },
+    {
+      "id": "45746066",
+      "file": "batch_20250815_131356_45746066.json",
+      "original_name": "batch_8_10000.json",
+      "batch_number": "8",
+      "games": 10000,
+      "created": "2025-08-15T13:13:56.025880",
+      "size_bytes": 36033524
+    },
+    {
+      "id": "dcfb3561",
+      "file": "batch_20250815_140809_dcfb3561.json",
+      "original_name": "batch_90_10000.json",
+      "batch_number": "90",
+      "games": 10000,
+      "created": "2025-08-15T14:08:09.920507",
+      "size_bytes": 36033611
+    },
+    {
+      "id": "261de500",
+      "file": "batch_20250815_140848_261de500.json",
+      "original_name": "batch_91_10000.json",
+      "batch_number": "91",
+      "games": 10000,
+      "created": "2025-08-15T14:08:48.051207",
+      "size_bytes": 36036171
+    },
+    {
+      "id": "f2c80057",
+      "file": "batch_20250815_140926_f2c80057.json",
+      "original_name": "batch_92_10000.json",
+      "batch_number": "92",
+      "games": 10000,
+      "created": "2025-08-15T14:09:26.332948",
+      "size_bytes": 36034805
+    },
+    {
+      "id": "9c4f896a",
+      "file": "batch_20250815_141004_9c4f896a.json",
+      "original_name": "batch_93_10000.json",
+      "batch_number": "93",
+      "games": 10000,
+      "created": "2025-08-15T14:10:04.363848",
+      "size_bytes": 36034659
+    },
+    {
+      "id": "9b3624b1",
+      "file": "batch_20250815_141051_9b3624b1.json",
+      "original_name": "batch_94_10000.json",
+      "batch_number": "94",
+      "games": 10000,
+      "created": "2025-08-15T14:10:51.844905",
+      "size_bytes": 36036787
+    },
+    {
+      "id": "cb2bf7ce",
+      "file": "batch_20250815_141129_cb2bf7ce.json",
+      "original_name": "batch_95_10000.json",
+      "batch_number": "95",
+      "games": 10000,
+      "created": "2025-08-15T14:11:29.850412",
+      "size_bytes": 36034918
+    },
+    {
+      "id": "43843686",
+      "file": "batch_20250815_141207_43843686.json",
+      "original_name": "batch_96_10000.json",
+      "batch_number": "96",
+      "games": 10000,
+      "created": "2025-08-15T14:12:07.827357",
+      "size_bytes": 36036105
+    },
+    {
+      "id": "fa6ec189",
+      "file": "batch_20250815_141245_fa6ec189.json",
+      "original_name": "batch_97_10000.json",
+      "batch_number": "97",
+      "games": 10000,
+      "created": "2025-08-15T14:12:45.815196",
+      "size_bytes": 36034706
+    },
+    {
+      "id": "8c068e27",
+      "file": "batch_20250815_141323_8c068e27.json",
+      "original_name": "batch_98_10000.json",
+      "batch_number": "98",
+      "games": 10000,
+      "created": "2025-08-15T14:13:23.682295",
+      "size_bytes": 36037473
+    },
+    {
+      "id": "c66403c8",
+      "file": "batch_20250815_141401_c66403c8.json",
+      "original_name": "batch_99_10000.json",
+      "batch_number": "99",
+      "games": 10000,
+      "created": "2025-08-15T14:14:01.626167",
+      "size_bytes": 36035894
+    },
+    {
+      "id": "d63bf126",
+      "file": "batch_20250815_131435_d63bf126.json",
+      "original_name": "batch_9_10000.json",
+      "batch_number": "9",
+      "games": 10000,
+      "created": "2025-08-15T13:14:35.817968",
+      "size_bytes": 36036280
+    },
+    {
+      "id": "bed6e594",
+      "session": "20250815_142852_2ff4c4",
+      "batch_number": 1,
+      "file": "batch_20250815_142852_2ff4c4_001_bed6e594.json",
+      "games": 1000,
+      "created": "2025-08-15T14:28:54.843447"
+    }
+  ],
+  "complete_files": [
+    {
+      "id": "cc23eaae",
+      "file": "all_games_20250815_141840_1000000.json",
+      "original_name": "all_games_1000000.json",
+      "expected_games": 1000000,
+      "created": "2025-08-15T14:18:40.799024",
+      "size_bytes": 3603566439,
+      "size_mb": 3436.6
+    }
+  ]
+}
