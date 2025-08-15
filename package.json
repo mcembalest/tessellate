@@ -7,7 +7,7 @@
     "dev": "npx http-server -p 8424 -o -c-1",
     "browser": "npx http-server -p 8424 -o browser.html -c-1",
     "vercel-dev": "vercel dev",
-    "build": "vercel build",
+    "build": "echo 'No build step needed for static site'",
     "python-server": "python3 start_server.py",
     "generate-games": "python3 generate_games.py"
   },
