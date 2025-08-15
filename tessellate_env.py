@@ -105,7 +105,7 @@ class TessellateEnv:
         reward = self._calculate_reward(current_player)
         
         # Check if game is over
-        done = self.game.is_terminal()
+        done = self.game.game_over
         
         # Prepare info
         info = {
@@ -126,7 +126,7 @@ class TessellateEnv:
         
         if self.reward_mode == 'sparse':
             # Only terminal rewards
-            if self.game.is_terminal():
+            if self.game.game_over:
                 winner = self.game.get_winner()
                 if winner == player:
                     return 1.0
@@ -144,7 +144,7 @@ class TessellateEnv:
         
         elif self.reward_mode == 'terminal':
             # Only win/loss at end
-            if self.game.is_terminal():
+            if self.game.game_over:
                 winner = self.game.get_winner()
                 if winner == player:
                     return 1.0
@@ -159,7 +159,7 @@ class TessellateEnv:
             score_change = current_scores[player] - self.previous_scores[player]
             immediate_reward = score_change / 100.0
             
-            if self.game.is_terminal():
+            if self.game.game_over:
                 winner = self.game.get_winner()
                 if winner == player:
                     terminal_reward = 1.0
@@ -199,7 +199,7 @@ class TessellateEnv:
         """Check if game is over"""
         if self.game is None:
             return True
-        return self.game.is_terminal()
+        return self.game.game_over
     
     def render(self, mode='ascii'):
         """Render current state"""
@@ -208,7 +208,7 @@ class TessellateEnv:
             return
         
         if mode == 'ascii':
-            print(self.game.display())
+            print(self.game.render_ascii())
         else:
             # Could add support for returning RGB array for video recording
             pass

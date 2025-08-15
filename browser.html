@@ -888,8 +888,17 @@
                     if (games.length > 0) selectGame(0);
                 }
             } else {
-                // Default: load random_games_1000.json
-                loadSampleGames();
+                // Default: load hardcoded batch file  
+                const defaultBatch = 'batch_20250815_130917_cc23eaae';
+                console.log(`Loading default batch: ${defaultBatch}`);
+                const loaded = await loadBatchById(defaultBatch);
+                if (!loaded || games.length === 0) {
+                    // Fallback to sample games if batch doesn't exist
+                    console.log('Default batch not found, loading sample games');
+                    loadSampleGames();
+                } else {
+                    selectGame(0);
+                }
             }
         }
 
