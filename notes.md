@@ -1,126 +1,109 @@
-# Tessellate Test-Time Scaling Implementation Notes
+# Tessellate Test-Time Scaling: Critical Implementation Details
 
-## Core Concept
-Demonstrate how AI performance scales with inference-time computation in the Tessellate game environment.
+## Core Value Proposition
+Tessellate's multiplicative scoring creates explosive value changes that require deep search. This makes it ideal for demonstrating test-time compute scaling - the AI must evaluate compound effects of moves many steps ahead.
 
 ## Technical Architecture
 
-### Model Design
-- **Base**: Recurrent neural network with weight sharing across iterations
-- **Training**: Self-play with variable iteration counts during training
-- **Key Innovation**: Same model weights, different iteration budgets at inference
+### Model: Deep Thinking with Recall
+- **Architecture**: ResNet-style recurrent blocks with recall mechanism (concatenate board state at each iteration)
+- **Why Recall**: Prevents feature degradation over 1000+ iterations, ensures convergence
+- **Training**: Progressive loss (Algorithm 1, Chapter 5) with α=0.01 for stability
 
-### Three Compute Levels
-1. **Low** (10 iterations): ~50-60% win rate vs random
-2. **Medium** (100 iterations): ~70-80% win rate vs random  
-3. **High** (1000 iterations): ~85-95% win rate vs random
+### Compute Scaling Demonstration
+1. **Quick** (10 iterations): Sees immediate connections only
+2. **Balanced** (50 iterations): Evaluates 2-3 move sequences
+3. **Deep** (200+ iterations): Discovers compound strategies, multi-island planning
 
-### Implementation Requirements
+### Critical Implementation Details
 
-#### Python Components
-- `tessellate_scaled_ai.py`: Model architecture with recall mechanism
-- `train_with_scaling.py`: Training loop with progressive loss
-- Progressive loss weight α = 0.01 for game environments
-- Recall architecture: concatenate board state at each iteration
+#### Model Architecture (from Chapter 5)
+```python
+# Recall mechanism - the key to scaling
+def recurrent_block_with_recall(features, board_state):
+    combined = concat([features, board_state])
+    return residual_block(combined)
 
-#### JavaScript Integration
-- Export trained model to ONNX format
-- Use ONNX.js for browser inference
-- Implement iteration control in `game-pvp.js`
-- Add compute budget selector in UI
-
-#### Training Protocol
-1. Initialize with random self-play
-2. Use Algorithm 1 from Chapter 5:
-   - Sample n ~ U{0, max_iters-1}
-   - Sample k ~ U{1, max_iters-n}
-   - Train on partial solutions
-3. Combine progressive loss with standard loss
-4. Train for 10k games minimum
-
-## Key Algorithms
-
-### Recall Architecture (from Chapter 5)
+# Training: Progressive loss prevents overthinking
+n = random.randint(0, max_iters-1)  # Start from random iteration
+k = random.randint(1, max_iters-n)  # Continue for k steps
+partial_features = model.forward(board, n, no_grad=True)
+output = model.forward_from(partial_features, k)
+loss = alpha * progressive_loss + (1-alpha) * standard_loss
 ```
-f_recall(x; m) := h(r^m_recall(p(x), x))
-where r_recall(φ, x) := r([φ, x])
+
+#### Why This Works for Tessellate
+- **Multiplicative scoring**: Small decisions compound exponentially
+- **Island merging**: Requires evaluating sequences 5+ moves ahead
+- **Fixed board size**: 5x5 grid is complex enough to show scaling, simple enough to converge
+
+## The Convergence Property (Critical for Success)
+
+### What Makes Our Model Special
+```python
+# Measure convergence: Δφ should decrease
+delta_phi = torch.norm(features[i] - features[i-1])
+# Good models: delta_phi → 0 as iterations increase
+# Bad models: delta_phi explodes (overthinking)
 ```
-- Prevents forgetting the board state
-- Enables convergence to fixed point
-- Critical for avoiding overthinking
 
-### Progressive Training
-- Start from random intermediate evaluation
-- Train to improve from that point
-- Makes network iteration-agnostic
-- Prevents iteration-specific behaviors
+### Visual Proof of Concept
+- Iteration 1-20: Large Δφ (exploring possibilities)
+- Iteration 20-50: Medium Δφ (refining strategy)  
+- Iteration 50+: Small Δφ (converged to solution)
 
-## Evaluation Metrics
+This convergence property means:
+1. No need for halting mechanisms
+2. Can safely run 1000+ iterations
+3. Solution quality monotonically improves
 
-### Performance Indicators
-- Win rate vs baselines (random, greedy)
-- Convergence speed (iterations to stable evaluation)
-- Overthinking detection (performance degradation with excess iterations)
+## Educational Framing for NeurIPS
 
-### Baselines
-1. **Random**: Uniform selection from valid moves
-2. **Greedy**: Maximize immediate score gain
-3. **Fixed-depth**: Standard NN with fixed forward pass
+### The Single Key Insight
+In closed domains like games, AI performance scales with inference-time compute. This is fundamentally different from human thinking - we don't get better at chess by thinking 10x longer on each move.
 
-## Educational Framework
+### What Users Will See
+1. **Same AI, Different Speeds**: One model, three compute budgets
+2. **The Thinking Process**: Move evaluations evolving in real-time
+3. **Critical Moments**: AI automatically thinks longer at complex positions
+4. **The Plateau**: Eventually more compute doesn't help (convergence)
 
-### Learning Objectives
-1. Test-time compute scaling improves performance in closed domains
-2. More iterations enable deeper search of game tree
-3. Limitations: doesn't generalize beyond trained domain
+### What This Teaches
+- **Success**: Test-time scaling works when the problem space is bounded
+- **Limitation**: This doesn't create understanding or generalization
+- **Insight**: The difference between search (what AI does) and reasoning (what humans do)
 
-### Key Demonstrations
-- Show move evaluation heatmap evolving over iterations
-- Display convergence metric (Δφ < threshold)
-- Compare performance at different compute budgets
-- Highlight critical game moments where AI thinks longer
+## Minimal Viable Implementation
 
-## Implementation Timeline
+### Must Have
+1. Pre-trained model with verified scaling behavior
+2. Three clear compute levels with measurable performance differences
+3. Visual indicator of thinking progress
+4. Win rate comparison chart
 
-### Phase 1: Model Training (2 days)
-- Implement recall architecture
-- Add progressive loss training
-- Run self-play training
-- Validate scaling behavior
+### Can Skip
+- Complex visualizations of internal features
+- Multiple board sizes
+- Training interface
+- Detailed technical explanations
 
-### Phase 2: Browser Integration (1 day)
-- Export to ONNX
-- Integrate with existing game UI
-- Add compute budget controls
-- Implement visualization
+### Files to Create
+```python
+# tessellate_scaled_ai.py
+class TessellateScaledAI:
+    def __init__(self, checkpoint_path):
+        self.model = load_recall_model(checkpoint_path)
+    
+    def get_move(self, board, iterations):
+        features = self.model.embed(board)
+        for i in range(iterations):
+            features = self.model.recurrent_block(features, board)
+            if i % 10 == 0:
+                yield self.model.decode(features)  # Stream progress
+        return self.model.decode(features)
+```
 
-### Phase 3: Educational Polish (1 day)
-- Create comparison visualizations
-- Add explanatory text
-- Test with target audience
-- Package for submission
-
-## Critical Success Factors
-
-1. **Model must show clear scaling**: Performance should monotonically improve with iterations
-2. **No overthinking**: Model should converge, not oscillate
-3. **Interpretable behavior**: Visualizations should clearly show thinking process
-4. **Educational clarity**: Non-experts should understand compute scaling concept
-
-## Code Integration Points
-
-### Existing Files to Modify
-- `index.html`: Add AI opponent option
-- `game-pvp.js`: Integrate AI move selection
-- `browser.html`: Add thinking visualization
-
-### New Files Required
-- `tessellate_scaled_ai.py`: Model implementation
-- `train_scaled.py`: Training script
-- `ai_player.js`: Browser-side inference
-- `models/tessellate_scaled.onnx`: Trained model
-
-## References
-- Chapter 4: Initial recurrent architectures for games
-- Chapter 5: Recall architecture and progressive training
-- SPCT paper: Principle-based evaluation at scale
+## Success Metrics
+1. **Technical**: Model achieves >80% win rate at 200 iterations vs 50% at 10 iterations
+2. **Educational**: Users understand that more compute = better performance in closed domains
+3. **Clarity**: Non-experts grasp the concept without ML background
