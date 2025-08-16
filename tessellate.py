@@ -5,8 +5,7 @@ Ported from JavaScript to Python for RL training
 """
 
 from enum import IntEnum
-from typing import List, Tuple, Optional, Set
-import json
+from typing import List, Tuple, Optional
 
 class TileState(IntEnum):
     EMPTY = 0

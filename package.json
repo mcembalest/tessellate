@@ -1,7 +1,7 @@
 {
-  "name": "tessellate",
+  "name": "Tessellate",
   "version": "1.0.0",
-  "description": "A strategic board game with multiplicative scoring",
+  "description": "A simple and surprising board game",
   "scripts": {
     "start": "npx http-server -p 8424 -o",
     "dev": "npx http-server -p 8424 -o -c-1",

@@ -24,7 +24,7 @@ Example Usage:
 
 import numpy as np
 from typing import Tuple, Dict, List, Optional
-from tessellate import TessellateGame, TileState
+from tessellate import TessellateGame
 
 class TessellateEnv:
     """
