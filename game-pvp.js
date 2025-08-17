@@ -1,6 +1,5 @@
-// Tessellate Game Logic
+// Fully client-side Tessellategame logic
 
-// Game constants
 const RED = 0;
 const BLUE = 1;
 const EMPTY = 2;
@@ -9,7 +8,6 @@ const VISUAL_GRID_SIZE = 5;
 const LOGICAL_GRID_SIZE = VISUAL_GRID_SIZE * 2; 
 const TOTAL_TILES = VISUAL_GRID_SIZE * VISUAL_GRID_SIZE * 2; 
 
-// Game state
 let showPreview = true;
 let visualCellSize = 0; 
 let logicalCellSize = 0;
@@ -20,10 +18,7 @@ let gameOver = false;
 let hoverPosition = null; 
 let placedTilesCount = 0;
 
-// Canvas and context
 let canvas, ctx;
-
-// Colors
 const colors = {
     [RED]: { normal: '#e94560', preview: '#ff96a6' },
     [BLUE]: { normal: '#3f72af', preview: '#94b8ff' },
@@ -61,7 +56,6 @@ function drawBoard() {
     ctx.fillStyle = colors.background;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw tiles
     for (let r = 0; r < LOGICAL_GRID_SIZE; r++) {
         for (let c = 0; c < LOGICAL_GRID_SIZE; c++) {
             const tileState = board[r][c];
@@ -71,23 +65,21 @@ function drawBoard() {
         }
     }
     
-    // Draw grid lines
     ctx.strokeStyle = colors.gridLines;
     ctx.lineWidth = 1.5;
     for (let i = 0; i <= VISUAL_GRID_SIZE; i++) {
-        // Vertical
+        // vertical grid lines
         ctx.beginPath();
         ctx.moveTo(i * visualCellSize, 0);
         ctx.lineTo(i * visualCellSize, canvas.height);
         ctx.stroke();
-        // Horizontal
+        // horizontal grid lines
         ctx.beginPath();
         ctx.moveTo(0, i * visualCellSize);
         ctx.lineTo(canvas.width, i * visualCellSize);
         ctx.stroke();
     }
     
-    // Draw preview if applicable
     if (showPreview && hoverPosition && !gameOver && isPlayable(hoverPosition.r, hoverPosition.c)) {
         drawTile(hoverPosition.r, hoverPosition.c, currentTurn, true);
     }
@@ -145,7 +137,7 @@ function addTile(r, c) {
     board[r][c] = currentTurn;
     placedTilesCount++;
     
-    // Block adjacent corners
+    // block adjacent corners
     const c_adj = c + (c % 2 === 0 ? 1 : -1);
     if (isValidCoord(r, c_adj)) {
         if (board[r][c_adj] === EMPTY) board[r][c_adj] = OUT_OF_PLAY;
@@ -383,7 +375,6 @@ function toggleRules() {
     rulesPanel.style.display = rulesPanel.style.display === 'block' ? 'none' : 'block';
 }
 
-// Initialize game when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     initializeBoard();
     setupCanvas();

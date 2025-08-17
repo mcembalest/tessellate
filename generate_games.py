@@ -12,7 +12,7 @@ import hashlib
 import random
 from datetime import datetime
 from pathlib import Path
-from agents import RandomAgent, play_game
+from tessellate_agent import RandomAgent, play_game
 
 def generate_session_id():
     """Generate unique session ID for this generation run"""
