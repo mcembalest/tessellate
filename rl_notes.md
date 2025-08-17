@@ -8,7 +8,7 @@ Tessellate's multiplicative scoring creates explosive value changes that require
 ### Model: Deep Thinking with Recall
 - **Architecture**: ResNet-style recurrent blocks with recall mechanism (concatenate board state at each iteration)
 - **Why Recall**: Prevents feature degradation over 1000+ iterations, ensures convergence
-- **Training**: Progressive loss (Algorithm 1, Chapter 5) with α=0.01 for stability
+- **Training**: Progressive loss with α=0.01 for stability
 
 ### Compute Scaling Demonstration
 1. **Quick** (10 iterations): Sees immediate connections only
