@@ -494,58 +494,8 @@ function stopPlay() {
     }
 }
 
-// Load sample games function (auto-loads default games)
-async function loadSampleGames() {
-    const possibleUrls = [
-        'game_data/random_games_1000.json',  // Local development
-        'random_games_1000.json',             // GitHub Pages (file in root)
-        '../random_games_1000.json'           // Alternative path
-    ];
-    
-    // Try each possible URL until one works
-    for (const url of possibleUrls) {
-        try {
-            const response = await fetch(url);
-            if (response.ok) {
-                games = await response.json();
-                console.log(`Loaded ${games.length} games from ${url}`);
-                displayGameList();
-                updateStats();
-                if (games.length > 0) {
-                    selectGame(0);
-                }
-                return;
-            }
-        } catch (error) {
-            console.log(`Could not load from ${url}:`, error);
-        }
-    }
-    
-    
-    // If no files could be loaded (likely due to CORS when opening via file://)
-    console.log('Could not auto-load games. Please use "Load Custom JSON" to load a game file.');
-    games = [];
-    
-    // Update stats to show helpful message
-    const stats = document.getElementById('stats');
-    stats.innerHTML = `
-        <strong>No games loaded</strong><br>
-        Use "Load Custom JSON" to browse<br>
-        and select a game file
-    `;
-}
-
-// Fallback for when no games can be loaded
-function getSampleGames() {
-    // In production, this would fetch from an API
-    // For now, returns a message to load games
-    alert("Please click 'Load Sample Games' to load the demo games, or 'Load Custom JSON' to load your own game file.");
-    return [];
-}
-
 // Event listeners
 document.getElementById('file-input').addEventListener('change', loadGames);
-document.getElementById('load-sample-btn').addEventListener('click', loadSampleGames);
 document.getElementById('first-btn').addEventListener('click', firstMove);
 document.getElementById('prev-btn').addEventListener('click', prevMove);
 document.getElementById('next-btn').addEventListener('click', nextMove);
@@ -808,14 +758,7 @@ async function initializeApp() {
         // Default: load hardcoded batch file  
         const defaultBatch = 'batch_20250815_130917_cc23eaae';
         console.log(`Loading default batch: ${defaultBatch}`);
-        const loaded = await loadBatchById(defaultBatch);
-        if (!loaded || games.length === 0) {
-            // Fallback to sample games if batch doesn't exist
-            console.log('Default batch not found, loading sample games');
-            loadSampleGames();
-        } else {
-            selectGame(0);
-        }
+        selectGame(0);
     }
 }
 

@@ -31,9 +31,12 @@ class TessellateEnv:
     Gym-like environment for Tessellate
     
     Observation Space:
-        - Shape: (101,) 
-        - First 100: Flattened 10x10 board (0=empty, 1=red, 2=blue, 3=blocked)
-        - Last 1: Current player (1=red, 2=blue)
+        - Shape: (104,) 
+        - [0:100]: Flattened 10x10 board (0=empty, 1=red, 2=blue, 3=blocked)
+        - [100]: Current player (1=red, 2=blue)
+        - [101]: Red score (current)
+        - [102]: Blue score (current)
+        - [103]: Move number (0-49)
     
     Action Space:
         - Discrete(100) - index into flattened 10x10 grid
@@ -177,15 +180,20 @@ class TessellateEnv:
     def _get_observation(self) -> np.ndarray:
         """Get current observation"""
         if self.game is None:
-            return np.zeros(101)
+            return np.zeros(104)
         
         # Flatten board
         board_flat = np.array(self.game.board).flatten()
         
-        # Add current player
-        obs = np.append(board_flat, self.game.current_turn)
+        # Create full observation
+        obs = np.zeros(104, dtype=np.float32)
+        obs[:100] = board_flat
+        obs[100] = self.game.current_turn
+        obs[101] = self.game.scores.get(1, 0)  # Red score
+        obs[102] = self.game.scores.get(2, 0)  # Blue score
+        obs[103] = len(self.move_history)  # Move number (0-49)
         
-        return obs.astype(np.float32)
+        return obs
     
     def get_valid_actions(self) -> List[int]:
         """Get list of valid actions (indices in flattened board)"""

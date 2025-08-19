@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "created": "2025-08-15T14:23:33.403270",
-  "total_games": 1001000,
+  "total_games": 1000000,
   "batches": [
     {
       "id": "46a8ecf6",
@@ -902,25 +902,6 @@
       "games": 10000,
       "created": "2025-08-15T13:14:35.817968",
       "size_bytes": 36036280
-    },
-    {
-      "id": "bed6e594",
-      "session": "20250815_142852_2ff4c4",
-      "batch_number": 1,
-      "file": "batch_20250815_142852_2ff4c4_001_bed6e594.json",
-      "games": 1000,
-      "created": "2025-08-15T14:28:54.843447"
-    }
-  ],
-  "complete_files": [
-    {
-      "id": "cc23eaae",
-      "file": "all_games_20250815_141840_1000000.json",
-      "original_name": "all_games_1000000.json",
-      "expected_games": 1000000,
-      "created": "2025-08-15T14:18:40.799024",
-      "size_bytes": 3603566439,
-      "size_mb": 3436.6
     }
   ]
 }
