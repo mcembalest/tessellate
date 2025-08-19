@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 """
 PQN (Parallelized Q-Network) implementation for Tessellate.
-Based on "Simplifying Deep Temporal Difference Learning" paper.
 
-Key features:
-- LayerNorm after final hidden layer (critical for stability)
-- L2 regularization on weights
-- No target network needed
-- No replay buffer needed
+Based on "Simplifying Deep Temporal Difference Learning"
+https://arxiv.org/pdf/2407.04811
 """
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-from typing import Optional, Tuple
+from typing import Tuple
 
 
 class PQN(nn.Module):
@@ -54,7 +48,7 @@ class PQN(nn.Module):
         layers = []
         input_dim = state_dim
         
-        for i, hidden_dim in enumerate(hidden_dims):
+        for hidden_dim in hidden_dims:
             layers.append(nn.Linear(input_dim, hidden_dim))
             layers.append(nn.ReLU())
             input_dim = hidden_dim
@@ -160,7 +154,6 @@ class PQN(nn.Module):
             loss: Total loss (TD + L2)
             metrics: Dictionary of metrics for logging
         """
-        batch_size = states.shape[0]
         
         # Current Q-values for taken actions
         current_q_values = self(states)
