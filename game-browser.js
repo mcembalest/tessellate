@@ -343,9 +343,8 @@ function selectGame(index) {
     if (currentBatchId) {
         // Extract simple ID for cleaner URL (just the hash)
         let batchId = currentBatchId;
-        if (currentBatchId.endsWith('.json')) {
-            const parts = currentBatchId.replace('.json', '').split('_');
-            batchId = parts[parts.length - 1];  // Use last hash part
+        if (currentBatchId && currentBatchId.endsWith('.json')) {
+            batchId = currentBatchId.replace('.json', '');  // Use full filename without extension
         }
         const newUrl = `${window.location.pathname}?batch=${batchId}&game=${index + 1}`;
         window.history.pushState({}, '', newUrl);
@@ -564,9 +563,8 @@ document.getElementById('batch-selector').addEventListener('change', async (e) =
         const loaded = await loadBatchById(batchFile);
         if (loaded && games.length > 0) {
             selectGame(0);
-            // Extract simple ID for cleaner URL (just the hash)
-            const parts = batchFile.replace('.json', '').split('_');
-            const batchId = parts[parts.length - 1];  // Use last hash part
+            // Use full filename for URL (without extension)
+            const batchId = batchFile.replace('.json', '');
             // Update URL without reloading (game=1 for first game)
             const newUrl = `${window.location.pathname}?batch=${batchId}&game=1`;
             window.history.pushState({}, '', newUrl);
@@ -698,11 +696,9 @@ async function loadBatchById(batchIdOrFile) {
             // Just batch ID provided - try to find matching file
             // This handles URLs with just the hash ID
             url = `game_data/batch_*${batchIdOrFile}.json`;
-            // For simplicity, try the direct approach first
+            // Try direct filename first
             const possibleFiles = [
-                `game_data/batch_20250815_130917_${batchIdOrFile}.json`,
-                `game_data/batch_20250815_130956_${batchIdOrFile}.json`,
-                `game_data/batch_20250815_131035_${batchIdOrFile}.json`
+                `game_data/${batchIdOrFile}.json`
             ];
             // Try each possible file
             for (const file of possibleFiles) {
