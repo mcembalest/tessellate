@@ -758,7 +758,13 @@ async function initializeApp() {
         // Default: load hardcoded batch file  
         const defaultBatch = 'batch_20250815_130917_cc23eaae';
         console.log(`Loading default batch: ${defaultBatch}`);
-        selectGame(0);
+        const loaded = await loadBatchById(defaultBatch);
+        if (!loaded || games.length === 0) {
+            console.log('Default batch not found, loading sample games');
+            loadSampleGames();
+        } else {
+            if (games.length > 0) selectGame(0);
+        }
     }
 }
 
