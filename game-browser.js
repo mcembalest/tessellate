@@ -761,11 +761,51 @@ async function initializeApp() {
         const loaded = await loadBatchById(defaultBatch);
         if (!loaded || games.length === 0) {
             console.log('Default batch not found, loading sample games');
-            loadSampleGames();
+            await loadSampleGames();
         } else {
             if (games.length > 0) selectGame(0);
         }
     }
+}
+
+// Fallback for when no games can be loaded
+async function loadSampleGames() {
+    const possibleUrls = [
+        'game_data/batch_20250815_130917_cc23eaae.json',
+        'game_data/batch_20250815_130956_20559b7d.json',
+        'game_data/batch_20250815_131035_69f49367.json'
+    ];
+    
+    // Try each possible URL until one works
+    for (const url of possibleUrls) {
+        try {
+            const response = await fetch(url);
+            if (response.ok) {
+                games = await response.json();
+                console.log(`Loaded ${games.length} games from ${url}`);
+                displayGameList();
+                updateStats();
+                if (games.length > 0) {
+                    selectGame(0);
+                }
+                return;
+            }
+        } catch (error) {
+            console.log(`Could not load from ${url}:`, error);
+        }
+    }
+    
+    // If no files could be loaded (likely due to CORS when opening via file://)
+    console.log('Could not auto-load games. Please use "Load Custom JSON" to load a game file.');
+    games = [];
+    
+    // Update stats to show helpful message
+    const stats = document.getElementById('stats');
+    stats.innerHTML = `
+        <strong>No games loaded</strong><br>
+        Use "Load Custom JSON" to browse<br>
+        and select a game file
+    `;
 }
 
 // Initialize
