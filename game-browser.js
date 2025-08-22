@@ -794,16 +794,8 @@ async function loadSampleGames() {
     }
     
     // If no files could be loaded (likely due to CORS when opening via file://)
-    console.log('Could not auto-load games. Please use "Load Custom JSON" to load a game file.');
+    console.log('Could not auto-load games.');
     games = [];
-    
-    // Update stats to show helpful message
-    const stats = document.getElementById('stats');
-    stats.innerHTML = `
-        <strong>No games loaded</strong><br>
-        Use "Load Custom JSON" to browse<br>
-        and select a game file
-    `;
 }
 
 function setupEventListeners() {
