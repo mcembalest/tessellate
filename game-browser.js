@@ -16,15 +16,19 @@ const BLOCKED = 3;
 const VISUAL_GRID_SIZE = 5;
 const LOGICAL_GRID_SIZE = 10;
 
-// Canvas setup
-const canvas = document.getElementById('game-board');
-const ctx = canvas.getContext('2d');
-let visualCellSize = canvas.width / VISUAL_GRID_SIZE;
-let logicalCellSize = canvas.width / LOGICAL_GRID_SIZE;
+// Canvas setup - defer until DOM ready
+let canvas, ctx, visualCellSize, logicalCellSize;
+let mainSparklineCanvas, mainSparklineCtx;
 
-// Sparkline setup
-const mainSparklineCanvas = document.getElementById('main-sparkline');
-const mainSparklineCtx = mainSparklineCanvas.getContext('2d');
+function initCanvases() {
+    canvas = document.getElementById('game-board');
+    ctx = canvas.getContext('2d');
+    visualCellSize = canvas.width / VISUAL_GRID_SIZE;
+    logicalCellSize = canvas.width / LOGICAL_GRID_SIZE;
+
+    mainSparklineCanvas = document.getElementById('main-sparkline');
+    mainSparklineCtx = mainSparklineCanvas.getContext('2d');
+}
 const sparklineCache = new Map();
 
 const colors = {
@@ -804,9 +808,10 @@ async function loadSampleGames() {
     `;
 }
 
-// Initialize
-initBoard();
-drawBoard();
-
-// Start the app
-initializeApp();
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    initCanvases();
+    initBoard();
+    drawBoard();
+    await initializeApp();
+});
