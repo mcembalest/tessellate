@@ -505,8 +505,8 @@ document.getElementById('next-btn').addEventListener('click', nextMove);
 document.getElementById('last-btn').addEventListener('click', lastMove);
 document.getElementById('play-btn').addEventListener('click', togglePlay);
 
-// Main sparkline click interaction
-mainSparklineCanvas.addEventListener('click', (e) => {
+// Canvas event listeners will be set up in setupEventListeners()
+/* mainSparklineCanvas.addEventListener('click', (e) => {
     if (!currentGame) return;
     
     const rect = mainSparklineCanvas.getBoundingClientRect();
@@ -554,11 +554,9 @@ mainSparklineCanvas.addEventListener('mousemove', (e) => {
     tooltip.style.display = 'block';
 });
 
-mainSparklineCanvas.addEventListener('mouseleave', () => {
-    if (tooltip) {
-        tooltip.style.display = 'none';
-    }
-});
+}) */
+
+// All canvas event listeners moved to setupEventListeners()
 
 // Batch selector change handler
 document.getElementById('batch-selector').addEventListener('change', async (e) => {
@@ -808,9 +806,59 @@ async function loadSampleGames() {
     `;
 }
 
+function setupEventListeners() {
+    // Canvas-dependent event listeners
+    mainSparklineCanvas.addEventListener('click', (e) => {
+        if (!currentGame) return;
+        
+        const rect = mainSparklineCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const ratio = x / mainSparklineCanvas.width;
+        const targetMove = Math.floor(ratio * currentGame.moves.length);
+        
+        selectMove(Math.min(targetMove, currentGame.moves.length));
+    });
+
+    mainSparklineCanvas.addEventListener('mousemove', (e) => {
+        if (!currentGame) return;
+        
+        const rect = mainSparklineCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const ratio = x / mainSparklineCanvas.width;
+        const targetMove = Math.floor(ratio * currentGame.moves.length);
+        
+        // Show tooltip
+        const tooltip = document.getElementById('tooltip');
+        
+        // Get scores at this move
+        let redScore = 1, blueScore = 1;
+        if (targetMove > 0 && targetMove <= currentGame.moves.length) {
+            if (targetMove < currentGame.moves.length) {
+                const nextMove = currentGame.moves[targetMove];
+                redScore = nextMove.score_before[RED] || nextMove.score_before['1'] || 1;
+                blueScore = nextMove.score_before[BLUE] || nextMove.score_before['2'] || 1;
+            } else {
+                redScore = currentGame.final_scores.red || 1;
+                blueScore = currentGame.final_scores.blue || 1;
+            }
+        }
+        
+        tooltip.innerHTML = `Move ${targetMove}<br>R: ${redScore} | B: ${blueScore}`;
+        tooltip.style.left = e.clientX + 10 + 'px';
+        tooltip.style.top = e.clientY - 30 + 'px';
+        tooltip.style.display = 'block';
+    });
+
+    mainSparklineCanvas.addEventListener('mouseleave', () => {
+        const tooltip = document.getElementById('tooltip');
+        tooltip.style.display = 'none';
+    });
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
     initCanvases();
+    setupEventListeners();
     initBoard();
     drawBoard();
     await initializeApp();
