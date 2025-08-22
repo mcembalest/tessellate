@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tessellate Game Browser</title>
     <link rel="stylesheet" href="gamebrowser_styles.css">
+    <link rel="icon" type="image/png" href="tessellate_icon.png">
 </head>
 <body>
     <div class="sidebar">
@@ -13,16 +14,10 @@
             <button class="load-btn" onclick="window.location.href='index.html'" style="background-color: #e94560;">
                 ← Back to Game
             </button>
-            <button class="load-btn" id="load-sample-btn">
-                Reload Games
-            </button>
             <input type="file" id="file-input" accept=".json" style="display: none;">
             <button class="load-btn" onclick="document.getElementById('file-input').click()">
                 Load Custom JSON
             </button>
-            <select class="load-btn" id="batch-selector" style="margin-top: 10px; width: 100%;">
-                <option value="">Select Batch...</option>
-            </select>
             <div class="stats" id="stats">
                 Loading games...
             </div>

@@ -558,21 +558,21 @@ mainSparklineCanvas.addEventListener('mousemove', (e) => {
 
 // All canvas event listeners moved to setupEventListeners()
 
-// Batch selector change handler
-document.getElementById('batch-selector').addEventListener('change', async (e) => {
-    const batchFile = e.target.value;
-    if (batchFile) {
-        const loaded = await loadBatchById(batchFile);
-        if (loaded && games.length > 0) {
-            selectGame(0);
-            // Use full filename for URL (without extension)
-            const batchId = batchFile.replace('.json', '');
-            // Update URL without reloading (game=1 for first game)
-            const newUrl = `${window.location.pathname}?batch=${batchId}&game=1`;
-            window.history.pushState({}, '', newUrl);
-        }
-    }
-});
+// // Batch selector change handler
+// document.getElementById('batch-selector').addEventListener('change', async (e) => {
+//     const batchFile = e.target.value;
+//     if (batchFile) {
+//         const loaded = await loadBatchById(batchFile);
+//         if (loaded && games.length > 0) {
+//             selectGame(0);
+//             // Use full filename for URL (without extension)
+//             const batchId = batchFile.replace('.json', '');
+//             // Update URL without reloading (game=1 for first game)
+//             const newUrl = `${window.location.pathname}?batch=${batchId}&game=1`;
+//             window.history.pushState({}, '', newUrl);
+//         }
+//     }
+// });
 
 document.getElementById('move-slider').addEventListener('input', (e) => {
     currentMoveIndex = parseInt(e.target.value);
@@ -613,42 +613,42 @@ function getUrlParams() {
     };
 }
 
-// Load available game files
-async function loadGameDirectory() {
-    // For GitHub Pages, we can't scan directories
-    // So we'll just hide the batch selector and rely on default games
-    const selector = document.getElementById('batch-selector');
+// // Load available game files
+// async function loadGameDirectory() {
+//     // For GitHub Pages, we can't scan directories
+//     // So we'll just hide the batch selector and rely on default games
+//     const selector = document.getElementById('batch-selector');
     
-    // Check if we're on localhost (where directory scanning might work)
-    const isLocalhost = window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1';
+//     // Check if we're on localhost (where directory scanning might work)
+//     const isLocalhost = window.location.hostname === 'localhost' || 
+//                         window.location.hostname === '127.0.0.1';
     
-    if (isLocalhost) {
-        try {
-            // Try to fetch the game_data directory listing
-            const response = await fetch('game_data/');
-            if (response.ok) {
-                const text = await response.text();
-                // Parse HTML directory listing for .json files
-                const matches = text.match(/href="([^"]+\.json)"/g);
-                if (matches) {
-                    const files = matches.map(m => m.match(/href="([^"]+)"/)[1]);
-                    const batchFiles = files.filter(f => f.startsWith('batch_'));
-                    console.log(`Found ${batchFiles.length} batch files`);
-                    populateBatchSelectorFromFiles(batchFiles);
-                    selector.style.display = 'block';
-                    return true;
-                }
-            }
-        } catch (error) {
-            console.log('Could not scan directory:', error);
-        }
-    }
+//     if (isLocalhost) {
+//         try {
+//             // Try to fetch the game_data directory listing
+//             const response = await fetch('game_data/');
+//             if (response.ok) {
+//                 const text = await response.text();
+//                 // Parse HTML directory listing for .json files
+//                 const matches = text.match(/href="([^"]+\.json)"/g);
+//                 if (matches) {
+//                     const files = matches.map(m => m.match(/href="([^"]+)"/)[1]);
+//                     const batchFiles = files.filter(f => f.startsWith('batch_'));
+//                     console.log(`Found ${batchFiles.length} batch files`);
+//                     populateBatchSelectorFromFiles(batchFiles);
+//                     selector.style.display = 'block';
+//                     return true;
+//                 }
+//             }
+//         } catch (error) {
+//             console.log('Could not scan directory:', error);
+//         }
+//     }
     
-    // For GitHub Pages or if scanning fails, hide the selector
-    selector.style.display = 'none';
-    return true;
-}
+//     // For GitHub Pages or if scanning fails, hide the selector
+//     selector.style.display = 'none';
+//     return true;
+// }
 
 // Populate batch selector from file list
 function populateBatchSelectorFromFiles(batchFiles) {
@@ -740,7 +740,7 @@ async function initializeApp() {
     const urlParams = getUrlParams();
     
     // Load game directory first
-    await loadGameDirectory();
+    // await loadGameDirectory();
     
     // Try to load specific batch if provided
     if (urlParams.batch) {
