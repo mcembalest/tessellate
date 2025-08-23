@@ -17,6 +17,10 @@ let scores = { [RED]: 1, [BLUE]: 1 };
 let gameOver = false;
 let hoverPosition = null; 
 let placedTilesCount = 0;
+let aiEnabled = false;
+let aiSide = BLUE; 
+let agentUrl = "http://127.0.0.1:8001";
+let aiThinking = false;
 
 let canvas, ctx;
 const colors = {
@@ -50,6 +54,8 @@ function setupCanvas() {
     logicalCellSize = visualCellSize / 2;
     console.log(`Canvas Setup: Size=${canvas.width}x${canvas.height}, VisualCell=${visualCellSize}, LogicalCell=${logicalCellSize}`);
     drawBoard();
+    
+    maybeMakeAIMove();
 }
 
 function drawBoard() {
@@ -298,6 +304,7 @@ function getClickableCorner(x, y) {
 
 function handleClick(event) {
     if (gameOver) return;
+    if (aiEnabled && currentTurn === aiSide) return; 
     const { x, y } = getCoordsFromEvent(event);
     const clickResult = getClickableCorner(x, y);
     if (clickResult) {
@@ -316,6 +323,7 @@ function handleClick(event) {
                 hoverPosition = null;
                 canvas.style.cursor = 'default';
             }
+            maybeMakeAIMove();
         }
     } else {
         console.log("Click is not on a playable corner.");
@@ -357,6 +365,8 @@ function resetGame() {
     updateTurnIndicator();
     canvas.style.cursor = 'default';
     drawBoard();
+    
+    maybeMakeAIMove();
 }
 
 function togglePreview() {
@@ -387,11 +397,13 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('mouseout', handleMouseOut);
     canvas.addEventListener('touchstart', (e) => {
         if (gameOver) return;
+    if (aiEnabled && currentTurn === aiSide) return; 
         e.preventDefault();
         handleMouseMove(e);
     }, { passive: false });
     canvas.addEventListener('touchend', (e) => {
         if (gameOver) return;
+    if (aiEnabled && currentTurn === aiSide) return; 
         const currentHover = hoverPosition;
         if (currentHover) {
             handleClick(e);
@@ -400,9 +412,97 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('new-game-btn').addEventListener('click', resetGame);
     document.getElementById('rules-btn').addEventListener('click', toggleRules);
+    const aiEnabledEl = document.getElementById('ai-enabled');
+    const aiSideEl = document.getElementById('ai-side');
+    const agentUrlEl = document.getElementById('agent-url');
+    if (aiEnabledEl && aiSideEl && agentUrlEl) {
+        aiEnabledEl.addEventListener('change', (e) => {
+            aiEnabled = e.target.checked;
+            if (aiEnabled) {
+                aiSide = (aiSideEl.value === 'RED') ? RED : BLUE;
+                agentUrl = agentUrlEl.value || agentUrl;
+                maybeMakeAIMove();
+            }
+        });
+        aiSideEl.addEventListener('change', (e) => {
+            aiSide = (e.target.value === 'RED') ? RED : BLUE;
+            maybeMakeAIMove();
+        });
+        agentUrlEl.addEventListener('change', (e) => {
+            agentUrl = e.target.value || agentUrl;
+        });
+    }
     
     window.addEventListener('resize', () => {
         console.log("Window resized");
         setupCanvas();
     });
 });
+
+// Build model-compatible state vector (length 104)
+function buildModelState() {
+    const obs = new Array(104).fill(0);
+    let idx = 0;
+    for (let r = 0; r < LOGICAL_GRID_SIZE; r++) {
+        for (let c = 0; c < LOGICAL_GRID_SIZE; c++) {
+            const v = board[r][c];
+            let mapped = 0;
+            if (v === RED) mapped = 1;
+            else if (v === BLUE) mapped = 2;
+            else if (v === EMPTY) mapped = 0;
+            else if (v === OUT_OF_PLAY) mapped = 3;
+            obs[idx++] = mapped;
+        }
+    }
+    obs[100] = (currentTurn === RED) ? 1 : 2;
+    obs[101] = scores[RED] || 1;
+    obs[102] = scores[BLUE] || 1;
+    obs[103] = placedTilesCount;
+    return obs;
+}
+
+function getValidActionsFlat() {
+    const acts = [];
+    for (let r = 0; r < LOGICAL_GRID_SIZE; r++) {
+        for (let c = 0; c < LOGICAL_GRID_SIZE; c++) {
+            if (board[r][c] === EMPTY) acts.push(r * 10 + c);
+        }
+    }
+    return acts;
+}
+
+async function maybeMakeAIMove() {
+    if (!aiEnabled || gameOver || currentTurn !== aiSide || aiThinking) return;
+    aiThinking = true;
+    try {
+        const state = buildModelState();
+        const valid_actions = getValidActionsFlat();
+        if (valid_actions.length === 0) { aiThinking = false; return; }
+        const res = await fetch(`${agentUrl}/move`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ state, valid_actions })
+        });
+        const data = await res.json();
+        let action = (data && typeof data.action === 'number') ? data.action : -1;
+        if (!valid_actions.includes(action)) {
+            console.warn('Agent returned invalid action, picking fallback.');
+            action = valid_actions[Math.floor(Math.random() * valid_actions.length)];
+        }
+        const r = Math.floor(action / 10);
+        const c = action % 10;
+        if (isPlayable(r, c)) {
+            addTile(r, c);
+            calculateScore();
+            updateScoreDisplay();
+            currentTurn = 1 - currentTurn;
+            updateTurnIndicator();
+            checkGameOver();
+            drawBoard();
+        }
+    } catch (e) {
+        console.error('AI move error:', e);
+    } finally {
+        aiThinking = false;
+    }
+}

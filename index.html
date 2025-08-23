@@ -38,6 +38,18 @@
         <button id="new-game-btn">New Game</button>
         <button id="rules-btn">Rules</button>
         <button id="browser-btn" onclick="window.location.href='browser.html'">Game Browser</button>
+        <div style="margin-top:10px">
+            <label style="margin-right:8px"><input type="checkbox" id="ai-enabled"> Play vs Agent</label>
+            <label style="margin-right:8px">AI Side:
+                <select id="ai-side">
+                    <option value="BLUE" selected>Blue</option>
+                    <option value="RED">Red</option>
+                </select>
+            </label>
+            <label>Agent URL:
+                <input id="agent-url" type="text" size="28" value="http://127.0.0.1:8001">
+            </label>
+        </div>
     </div>
 
     <footer>

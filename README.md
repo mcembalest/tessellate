@@ -87,3 +87,24 @@ If you use Tessellate in your research, please cite:
   url = {https://github.com/maxcembalest/tessellate}
 }
 ```
+
+
+### Bot-vs-Bot (local) via JSONL protocol
+
+Two PQN checkpoints can now play each other locally using a lightweight stdin/stdout JSONL protocol.
+
+Files:
+- agent_protocol.py – message schema (JSONL)
+- pqn_agent_cli.py – loads a PQN checkpoint and answers move requests
+- referee.py – runs the match using TessellateEnv and records games compatible with the browser viewer
+
+Example:
+
+```bash
+uv run referee.py \n  --agent1 "uv run pqn_agent_cli.py --checkpoint checkpoints/pqn_model_batch50_20250819_170514.pt --device cpu" \
+  --agent2 "uv run pqn_agent_cli.py --checkpoint checkpoints/pqn_model_batch100_20250819_170515.pt --device cpu" \
+  --games 5 \
+  --out game_data/pqn_vs_pqn.json
+```
+
+Open browser.html and load the generated JSON to replay the games.

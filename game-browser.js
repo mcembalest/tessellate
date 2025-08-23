@@ -60,12 +60,12 @@ function calculateScoreDifferences(game) {
         if (i < game.moves.length - 1) {
             // Get scores from next move's score_before
             const nextMove = game.moves[i + 1];
-            redScore = nextMove.score_before[RED] || nextMove.score_before['1'] || 1;
-            blueScore = nextMove.score_before[BLUE] || nextMove.score_before['2'] || 1;
+            redScore = (nextMove.score_before?.[RED] ?? nextMove.score_before?.['1'] ?? 1);
+            blueScore = (nextMove.score_before?.[BLUE] ?? nextMove.score_before?.['2'] ?? 1);
         } else {
             // Last move - use final scores
-            redScore = game.final_scores.red || 1;
-            blueScore = game.final_scores.blue || 1;
+            redScore = game.final_scores?.red ?? 1;
+            blueScore = game.final_scores?.blue ?? 1;
         }
         
         // Calculate difference (positive = red winning, negative = blue winning)
@@ -269,8 +269,8 @@ function updateStats() {
         return;
     }
 
-    const redWins = games.filter(g => g.winner === RED).length;
-    const blueWins = games.filter(g => g.winner === BLUE).length;
+    const redWins = games.filter(g => (g.winner === RED || g.winner === '1')).length;
+    const blueWins = games.filter(g => (g.winner === BLUE || g.winner === '2')).length;
     const ties = games.filter(g => g.winner === null).length;
     
     stats.innerHTML = `
@@ -297,9 +297,9 @@ function displayGameList() {
         const scoreDiff = Math.abs(redScore - blueScore);
         
         // Add winner class
-        if (game.winner === RED) {
+        if (game.winner === RED || game.winner === '1') {
             li.classList.add('red-win');
-        } else if (game.winner === BLUE) {
+        } else if (game.winner === BLUE || game.winner === '2') {
             li.classList.add('blue-win');
         }
         
@@ -310,8 +310,8 @@ function displayGameList() {
             li.classList.add('blowout');
         }
         
-        const winner = game.winner === RED ? 'Red' : 
-                        game.winner === BLUE ? 'Blue' : 'Tie';
+        const winner = (game.winner === RED || game.winner === '1') ? 'Red' : 
+                        (game.winner === BLUE || game.winner === '2') ? 'Blue' : 'Tie';
         
         li.innerHTML = `
             Game ${index + 1} - <strong>${winner}</strong>
@@ -404,11 +404,11 @@ function updateDisplay() {
         // Get score after this move by looking at next move's score_before or final scores
         if (currentMoveIndex < currentGame.moves.length) {
             const nextMove = currentGame.moves[currentMoveIndex];
-            document.getElementById('red-score').textContent = nextMove.score_before[RED] || nextMove.score_before['1'];
-            document.getElementById('blue-score').textContent = nextMove.score_before[BLUE] || nextMove.score_before['2'];
+            document.getElementById('red-score').textContent = (nextMove.score_before?.[RED] ?? nextMove.score_before?.['1'] ?? 1);
+            document.getElementById('blue-score').textContent = (nextMove.score_before?.[BLUE] ?? nextMove.score_before?.['2'] ?? 1);
         } else {
-            document.getElementById('red-score').textContent = currentGame.final_scores.red;
-            document.getElementById('blue-score').textContent = currentGame.final_scores.blue;
+            document.getElementById('red-score').textContent = currentGame.final_scores?.red ?? 1;
+            document.getElementById('blue-score').textContent = currentGame.final_scores?.blue ?? 1;
         }
     }
     
@@ -434,6 +434,13 @@ function updateDisplay() {
     // Update main sparkline
     const diffs = calculateScoreDifferences(currentGame);
     drawSparkline(mainSparklineCanvas, diffs, currentMoveIndex);
+}
+
+// Helper to allow external jumps (sparkline clicks, slider, etc.)
+function selectMove(moveIndex) {
+    if (!currentGame) return;
+    currentMoveIndex = Math.max(0, Math.min(moveIndex, currentGame.moves.length));
+    updateDisplay();
 }
 
 // Navigation functions
