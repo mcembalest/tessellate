@@ -478,13 +478,20 @@ async function maybeMakeAIMove() {
         const state = buildModelState();
         const valid_actions = getValidActionsFlat();
         if (valid_actions.length === 0) { aiThinking = false; return; }
-        const res = await fetch(`${agentUrl}/move`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ state, valid_actions })
-        });
-        const data = await res.json();
-        let action = (data && typeof data.action === 'number') ? data.action : -1;
+        let action = -1;
+        const useBrowser = !agentUrl || agentUrl.trim() === '' || agentUrl.startsWith('browser');
+        if (useBrowser && window.PQN) {
+            const modelUrl = 'model/pqn_model_batch50.json';
+            action = await window.PQN.selectAction(modelUrl, state, valid_actions);
+        } else {
+            const res = await fetch(`${agentUrl}/move`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state, valid_actions })
+            });
+            const data = await res.json();
+            action = (data && typeof data.action === 'number') ? data.action : -1;
+        }
         if (!valid_actions.includes(action)) {
             console.warn('Agent returned invalid action, picking fallback.');
             action = valid_actions[Math.floor(Math.random() * valid_actions.length)];
