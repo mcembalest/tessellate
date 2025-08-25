@@ -38,7 +38,7 @@ def _pos_to_str(r: int, c: int) -> str:
 class TessellateTaEnv(ta.Env):
     """Two-player TextArena environment for Tessellate."""
 
-    def __init__(self, error_allowance: int = 2):
+    def __init__(self, error_allowance: int = 4):
         # Core game implementation
         self.game = TessellateGame()
 
@@ -199,12 +199,43 @@ class TessellateTaEnv(ta.Env):
             observation_type=ta.ObservationType.PLAYER_ACTION,
         )
 
-        # Parse move: accept [A0] or A0 anywhere in the text
-        move_pat = re.compile(r"\b\[?([A-Ja-j])\s*([0-9])\]?\b")
-        m = move_pat.search(action)
-        if not m:
+        # Parse move: accept multiple formats
+        r = c = None
+
+        # 1) Visual square format: [A0-UL] or A0-UL (A-E rows, 0-4 cols, corner UL/UR/LL/LR)
+        m_vis = re.search(r"\b\[?([A-Ea-e])\s*([0-4])\s*[-, ]\s*(UL|UR|LL|LR)\]?\b", action)
+        if m_vis:
+            sr = ord(m_vis.group(1).upper()) - ord('A')
+            sc = int(m_vis.group(2))
+            corner = m_vis.group(3).upper()
+            cr, cc = {'UL': (0,0), 'UR': (0,1), 'LL': (1,0), 'LR': (1,1)}[corner]
+            r, c = 2*sr + cr, 2*sc + cc
+
+        # 2) Logical cell format: [A0] or A0 (A-J rows, 0-9 cols)
+        if r is None:
+            m_cell = re.search(r"\b\[?([A-Ja-j])\s*([0-9])\]?\b", action)
+            if m_cell:
+                r = ord(m_cell.group(1).upper()) - ord('A')
+                c = int(m_cell.group(2))
+
+        # 3) Othello-style: [row, col] with integers 0..9
+        if r is None:
+            m_rc = re.search(r"\[\s*(\d)\s*,\s*(\d)\s*\]", action)
+            if m_rc:
+                r, c = int(m_rc.group(1)), int(m_rc.group(2))
+
+        # 4) Tuple visual: (square_r, square_c, CORNER)
+        if r is None:
+            m_tuple = re.search(r"\(\s*(\d)\s*,\s*(\d)\s*,\s*(UL|UR|LL|LR)\s*\)", action, re.IGNORECASE)
+            if m_tuple:
+                sr, sc = int(m_tuple.group(1)), int(m_tuple.group(2))
+                if 0 <= sr < 5 and 0 <= sc < 5:
+                    cr, cc = {'UL': (0,0), 'UR': (0,1), 'LL': (1,0), 'LR': (1,1)}[m_tuple.group(3).upper()]
+                    r, c = 2*sr + cr, 2*sc + cc
+
+        if r is None or c is None:
             reason = (
-                f"Invalid action format. Player {player_id} must provide a move like [A0]."
+                f"Invalid action format. Player {player_id} must provide a move like [A0] or A0-UL."
             )
             self.state.set_invalid_move(reason=reason)
             # Surface a clear admin message to both players for debugging
@@ -214,9 +245,6 @@ class TessellateTaEnv(ta.Env):
                     observation_type=ta.ObservationType.GAME_ADMIN,
                 )
         else:
-            row_letter, col_str = m.groups()
-            r = ord(row_letter.upper()) - ord("A")
-            c = int(col_str)
 
             # Validate against game rules
             if not (0 <= r < 10 and 0 <= c < 10):
@@ -291,10 +319,11 @@ class TessellateTaEnv(ta.Env):
         self._observe_current_state()
         return result
 
-if __name__ == "__main__":
-    # Register with TextArena so it can be created via ta.make("Tessellate-v0")
+# Register with TextArena at import time
+try:
     ta.envs.registration.register(
         id="Tessellate-v0",
         entry_point=TessellateTaEnv,
     )
-    print("done")
+except Exception:
+    pass
