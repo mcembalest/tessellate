@@ -14,4 +14,5 @@ dependencies = [
     "fastapi>=0.116.1",
     "uvicorn>=0.35.0",
     "verifiers>=0.1.2.post1",
+    "textarena>=0.7.3",
 ]
