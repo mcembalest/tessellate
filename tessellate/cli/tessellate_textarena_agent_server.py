@@ -152,9 +152,10 @@ def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List
     moves_visual = valid_actions_visual(valid_actions, max_items=50)
     instructions = (
         "You are playing Tessellate. Place one triangular tile per turn.\n"
-        "- Reply with a single move. Prefer the short form [A0] or the visual form A0-UR.\n"
-        "- Valid row letters: A-J (logical grid), or A-E with UL/UR/LL/LR for the visual squares.\n"
-        "- Only choose empty, not blocked, positions.\n"
+        "Respond in two labeled lines so we can display your thinking without private chain-of-thought.\n"
+        "- Move: a single coordinate (prefer [A0] or visual A0-UR).\n"
+        "- Reasoning: a concise high-level rationale (1-6 lines) focusing on island growth, blocking, and flexibility.\n"
+        "Valid row letters: A-J (logical grid), or A-E with UL/UR/LL/LR for the visual squares. Choose only empty (not blocked) positions.\n"
     )
     msg = (
         f"{board_str}\n"
@@ -219,10 +220,8 @@ def create_app(model_name: str) -> FastAPI:
             # Do not fallback randomly; let client handle the error explicitly.
             raise HTTPException(status_code=422, detail="Could not parse a valid move from agent output.")
 
-        # Short, friendly explanation for the UI
+        # Return full text so the browser can show richer reasoning
         explanation = str(raw).strip()
-        if len(explanation) > 280:
-            explanation = explanation[:277] + "..."
 
         return MoveResponse(action=action, explanation=explanation)
 
