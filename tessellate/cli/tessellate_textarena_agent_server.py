@@ -172,12 +172,15 @@ def create_app(model_name: str) -> FastAPI:
         CORSMiddleware,
         allow_origins=[
             "https://tessellate-app-ytnku.ondigitalocean.app",
+            "https://mcembalest.github.io",
+            "https://maxcembalest.github.io",
             "http://localhost:8424",
             "http://127.0.0.1:8424",
             "http://localhost:8080",
             "http://127.0.0.1:8080",
-            "null"  # if you open index.html directly via file://
+            "null"
         ],
+        allow_origin_regex=r"https://.*\\.github\\.io$",
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
