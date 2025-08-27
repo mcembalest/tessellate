@@ -11,7 +11,7 @@ Usage examples:
 
 import argparse
 import textarena as ta
-import tessellate_textarena_env  # registers Tessellate-v0
+from tessellate.environments import tessellate_textarena_env  # registers Tessellate-v0
 
 
 def main():

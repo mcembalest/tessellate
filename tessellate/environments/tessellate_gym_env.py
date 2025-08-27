@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
 """
-Tessellate: A Reinforcement Learning Environment
-
-A strategic board game with multiplicative scoring that provides
-an interesting testbed for RL algorithms.
-
-Key Properties:
-- Discrete action space (up to 100 positions, typically ~50 valid moves)
-- Perfect information
-- Two-player zero-sum (relative performance)
-- Short episodes (exactly 50 moves)
-- Complex value function (multiplicative scoring creates non-linear dynamics)
-- Compositional structure (local decisions affect global score)
-
 Example Usage:
     env = TessellateEnv()
     obs = env.reset()

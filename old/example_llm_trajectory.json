@@ -1,0 +1,25 @@
+{
+  "game_id": "example_001",
+  "trajectory": [
+    {
+      "move_num": 0,
+      "state_text": "Move 0/49, Red to play\nScores: Red=1 Blue=1\n\nBoard:\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··",
+      "reasoning": "<think>Starting position. I should claim the center area for better connectivity. The center square (2,2) offers good expansion potential.</think>",
+      "action_text": "Action: (2, 2, UL)",
+      "action_id": 44,
+      "valid": true
+    },
+    {
+      "move_num": 1,
+      "state_text": "Move 1/49, Blue to play\nScores: Red=1 Blue=1\n\nBoard:\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\nR· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··\n\n·· ·· ·· ·· ··\n·· ·· ·· ·· ··",
+      "reasoning": "<think>Red took center-left. I should contest the center or establish my own area. Let me take a nearby position to limit Red's expansion.</think>",
+      "action_text": "Action: (2, 2, LR)",
+      "action_id": 55,
+      "valid": true
+    }
+  ],
+  "final_scores": {"red": 156, "blue": 240},
+  "winner": "blue",
+  "score_differential": 84,
+  "reward": 0.084
+}

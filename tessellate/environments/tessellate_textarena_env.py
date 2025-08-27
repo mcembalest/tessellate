@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import textarena as ta
 
-from tessellate import TessellateGame, TileState
+from tessellate.game import TessellateGame, TileState
 
 
 ROW_LETTERS = [chr(ord("A") + i) for i in range(10)]
