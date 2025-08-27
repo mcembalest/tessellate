@@ -1,12 +1,29 @@
 {
-  "name": "Tessellate",
+  "name": "tessellate",
   "version": "1.0.0",
   "description": "A simple and surprising board game",
+  "main": "index.html",
   "scripts": {
-    "start": "npx http-server -p 8424 -o",
-    "dev": "npx http-server -p 8424 -o -c-1",
-    "vercel-dev": "vercel dev"
+    "start": "http-server -p 8424 -o",
+    "dev": "http-server -p 8424 -o -c-1",
+    "serve": "http-server -p 8080 -c-1",
+    "vercel-dev": "vercel dev",
+    "build": "echo 'Static site - no build step required'"
   },
-  "keywords": ["game", "board-game", "strategy", "tessellate"],
-  "author": "Max Cembalest"
+  "dependencies": {
+    "http-server": "^14.1.1"
+  },
+  "devDependencies": {
+    "vercel": "^37.0.0"
+  },
+  "keywords": ["game", "board-game", "strategy", "tessellate", "ai", "neural-network"],
+  "author": "Max Cembalest",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maxcembalest/tessellate.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

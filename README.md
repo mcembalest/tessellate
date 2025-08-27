@@ -10,71 +10,7 @@ Tessellate is played on a 10×10 grid where:
 - Players take turns placing right triangular tiles in square cells
 - Tiles of the same color form islands when connected by edges
 - Score = product (multiplication) of all your island sizes
-- Placing a tile blocks two adjacent corners (strategic blocking)
-- Highest score wins after 50 moves
-
-## Using This Repository
-
-```bash
-# Generate random game simulations
-uv run generate_games.py --num-games 10000
-
-# Process games into data formatted for RL 
-uv run preprocess_tessellate.py --mode large
-
-# Train PQN agent
-uv run pqn_train.py
-```
-
-### Project Structure
-
-```
-tessellate/
-├── Core Game
-│   ├── tessellate.py            # Game logic
-│   ├── tessellate_env.py        # RL environment
-│   └── tessellate_agent.py      # Agent interface
-├── PQN Implementation
-│   ├── pqn_model.py             # Neural network with LayerNorm
-│   ├── pqn_train.py             # Training without replay buffer
-│   └── data_loader.py           # Efficient data streaming
-└── Data Pipeline
-    ├── generate_games.py        # Generate self-play games
-    └── preprocess_tessellate.py # Convert to RL format
-```
-
-### Example RL Environment Usage
-
-```python
-from tessellate_env import TessellateEnv
-
-env = TessellateEnv(reward_mode='mixed')
-obs = env.reset()
-
-while not env.is_terminal():
-    valid_actions = env.get_valid_actions()
-    action = agent.select_action(obs, valid_actions)
-    obs, reward, done, info = env.step(action)
-```
-
-### RL Environment Design
-
-**Observation Space**: `(104,)` array
-- `[0:100]`: Flattened 10×10 board (0=empty, 1=red, 2=blue, 3=blocked)
-- `[100]`: Current player (1 or 2)
-- `[101]`: Red score
-- `[102]`: Blue score  
-- `[103]`: Move number (0-49)
-
-**Action Space**: Integer 0-99 (index into flattened board)
-
-**Reward**: given at end of game, proportional to size of win/loss disparity
-
-### Tessellate Coordinate System Logic
-
-The game uses a 10×10 logical grid mapped to a 5×5 visual grid:
-- Logical `(r,c)` → Square `(r÷2, c÷2)`, Corner `(r%2, c%2)`
-- (0,0) = top-left, (0,1) = top-right, (1,0) = bottom-left, (1,1) = bottom-right
+- Highest score wins after all the squares are filled
 
 ## Citation
 
@@ -108,3 +44,29 @@ uv run referee.py \n  --agent1 "uv run pqn_agent_cli.py --checkpoint checkpoints
 ```
 
 Open browser.html and load the generated JSON to replay the games.
+
+## Play in the browser: Human (Red) vs LLM (Blue)
+
+The in-browser PvP UI (index.html) supports playing against an AI. You can use either:
+- the built-in in-browser PQN model (leave Agent URL blank), or
+- a TextArena LLM agent via a tiny local HTTP server (recommended for LLMs).
+
+Quick start with a TextArena LLM agent:
+
+1) Start the agent server (requires OPENROUTER_API_KEY in your environment):
+
+```bash
+export OPENROUTER_API_KEY=...  # your key
+uv run python -m tessellate.cli.tessellate_textarena_agent_server   --model "GPT-4o-mini"   --host 127.0.0.1 --port 8001
+```
+
+This launches an HTTP server with a /move endpoint that the browser calls each time the AI needs to move.
+
+2) Open index.html in your browser. In the controls:
+- Check "Play vs Agent"
+- Ensure "AI Side" is Blue (default)
+- Agent URL defaults to http://127.0.0.1:8001 (keep or edit as needed)
+
+3) Play as Red. The LLM will play as Blue and its short rationale will appear under the scoreboard.
+
+Under the hood, the browser sends a compact state vector and valid moves to the server. The server translates the state into a TextArena-style board view, prompts the LLM agent for a move, parses common coordinate formats (e.g., [A0], A0-UR), and returns the chosen move back to the browser.

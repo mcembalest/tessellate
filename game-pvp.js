@@ -365,6 +365,8 @@ function resetGame() {
     updateTurnIndicator();
     canvas.style.cursor = 'default';
     drawBoard();
+    const expEl = document.getElementById('ai-explanation');
+    if (expEl) { expEl.style.display = 'none'; expEl.textContent = ''; }
     
     maybeMakeAIMove();
 }
@@ -479,6 +481,7 @@ async function maybeMakeAIMove() {
         const valid_actions = getValidActionsFlat();
         if (valid_actions.length === 0) { aiThinking = false; return; }
         let action = -1;
+        let explanation = '';
         const useBrowser = !agentUrl || agentUrl.trim() === '' || agentUrl.startsWith('browser');
         if (useBrowser && window.PQN) {
             const modelUrl = 'model/pqn_model_batch50.json';
@@ -491,6 +494,7 @@ async function maybeMakeAIMove() {
             });
             const data = await res.json();
             action = (data && typeof data.action === 'number') ? data.action : -1;
+            if (data && typeof data.explanation === 'string') explanation = data.explanation;
         }
         if (!valid_actions.includes(action)) {
             console.warn('Agent returned invalid action, picking fallback.');
@@ -506,6 +510,18 @@ async function maybeMakeAIMove() {
             updateTurnIndicator();
             checkGameOver();
             drawBoard();
+            // Show a brief explanation if provided by the agent server
+            const expEl = document.getElementById('ai-explanation');
+            if (expEl) {
+                if (explanation && !gameOver) {
+                    expEl.style.display = 'block';
+                    const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
+                    expEl.textContent = `${colorLabel} AI: ${explanation}`;
+                } else {
+                    expEl.style.display = 'none';
+                    expEl.textContent = '';
+                }
+            }
         }
     } catch (e) {
         console.error('AI move error:', e);
