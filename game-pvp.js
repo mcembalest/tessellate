@@ -19,8 +19,10 @@ let hoverPosition = null;
 let placedTilesCount = 0;
 let aiEnabled = false;
 let aiSide = BLUE; 
-let agentUrl = "http://127.0.0.1:8001";
+let agentUrl = "https://tessellate-app-ytnku.ondigitalocean.app/";
 let aiThinking = false;
+let aiLoaderInterval = null;
+let aiLoaderPhase = 0;
 
 let canvas, ctx;
 const colors = {
@@ -371,6 +373,28 @@ function resetGame() {
     maybeMakeAIMove();
 }
 
+function startAiLoader() {
+    const expEl = document.getElementById('ai-explanation');
+    if (!expEl) return;
+    const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
+    aiLoaderPhase = 0;
+    const frames = ['.', '..', '...'];
+    expEl.style.display = 'block';
+    expEl.textContent = `${colorLabel} AI is thinking`;
+    if (aiLoaderInterval) clearInterval(aiLoaderInterval);
+    aiLoaderInterval = setInterval(() => {
+        aiLoaderPhase = (aiLoaderPhase + 1) % frames.length;
+        expEl.textContent = `${colorLabel} AI is thinking${frames[aiLoaderPhase]}`;
+    }, 400);
+}
+
+function stopAiLoader() {
+    if (aiLoaderInterval) {
+        clearInterval(aiLoaderInterval);
+        aiLoaderInterval = null;
+    }
+}
+
 function togglePreview() {
     showPreview = !showPreview;
     if (!showPreview && hoverPosition !== null) {
@@ -483,6 +507,7 @@ async function maybeMakeAIMove() {
         let action = -1;
         let explanation = '';
         const useBrowser = !agentUrl || agentUrl.trim() === '' || agentUrl.startsWith('browser');
+        startAiLoader();
         if (useBrowser && window.PQN) {
             const modelUrl = 'model/pqn_model_batch50.json';
             action = await window.PQN.selectAction(modelUrl, state, valid_actions);
@@ -492,13 +517,28 @@ async function maybeMakeAIMove() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ state, valid_actions })
             });
+            if (!res.ok) {
+                const expEl = document.getElementById('ai-explanation');
+                let errText = `${res.status} ${res.statusText}`;
+                try { const t = await res.text(); if (t) errText = `${errText} - ${t}`; } catch {}
+                if (expEl) {
+                    expEl.style.display = 'block';
+                    expEl.textContent = `AI error: ${errText}`;
+                }
+                return; // do not proceed; no fallback
+            }
             const data = await res.json();
             action = (data && typeof data.action === 'number') ? data.action : -1;
             if (data && typeof data.explanation === 'string') explanation = data.explanation;
         }
         if (!valid_actions.includes(action)) {
-            console.warn('Agent returned invalid action, picking fallback.');
-            action = valid_actions[Math.floor(Math.random() * valid_actions.length)];
+            console.warn('Agent returned invalid action.');
+            const expEl = document.getElementById('ai-explanation');
+            if (expEl) {
+                expEl.style.display = 'block';
+                expEl.textContent = 'AI error: returned invalid action.';
+            }
+            return; // do not fallback randomly
         }
         const r = Math.floor(action / 10);
         const c = action % 10;
@@ -525,7 +565,13 @@ async function maybeMakeAIMove() {
         }
     } catch (e) {
         console.error('AI move error:', e);
+        const expEl = document.getElementById('ai-explanation');
+        if (expEl) {
+            expEl.style.display = 'block';
+            expEl.textContent = `AI error: ${e && e.message ? e.message : 'Failed to fetch'}`;
+        }
     } finally {
+        stopAiLoader();
         aiThinking = false;
     }
 }

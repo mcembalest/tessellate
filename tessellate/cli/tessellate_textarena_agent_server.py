@@ -18,13 +18,6 @@ How it works (browser <-> server):
     (r*10 + c). If parsing fails or the move is invalid, we fall back to a
     random valid action.
 
-Run:
-  python -m tessellate.cli.tessellate_textarena_agent_server \
-    --model "GPT-4o-mini" \
-    --host 127.0.0.1 --port 8001
-
-Authentication:
-  - For OpenRouterAgent, set OPENROUTER_API_KEY in your environment.
 """
 
 from __future__ import annotations
@@ -175,11 +168,17 @@ def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List
 def create_app(model_name: str) -> FastAPI:
     app = FastAPI(title="Tessellate TextArena Agent Server")
 
-    # Allow local browser to call us
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
+        allow_origins=[
+            "https://tessellate-app-ytnku.ondigitalocean.app",
+            "http://localhost:8424",
+            "http://127.0.0.1:8424",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+            "null"  # if you open index.html directly via file://
+        ],
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
@@ -200,7 +199,10 @@ def create_app(model_name: str) -> FastAPI:
 
         # Build prompt and ask the agent
         prompt = build_prompt(env, game, req.valid_actions)
-        raw = agent(prompt)
+        try:
+            raw = agent(prompt)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"Agent error: {type(e).__name__}: {e}")
 
         # Parse the agent's choice
         r, c = parse_llm_move(str(raw))
@@ -211,8 +213,8 @@ def create_app(model_name: str) -> FastAPI:
                 action = None
 
         if action is None:
-            # Fallback to a random valid move
-            action = random.choice(req.valid_actions)
+            # Do not fallback randomly; let client handle the error explicitly.
+            raise HTTPException(status_code=422, detail="Could not parse a valid move from agent output.")
 
         # Short, friendly explanation for the UI
         explanation = str(raw).strip()
@@ -230,7 +232,7 @@ def create_app(model_name: str) -> FastAPI:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default=os.environ.get("OPENROUTER_MODEL", "GPT-4o-mini"))
+    parser.add_argument("--model", default=os.environ.get("TESSELLATE_AGENT_MODEL", "o4-mini"))
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8001)
     args = parser.parse_args()

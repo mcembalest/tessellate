@@ -19,7 +19,7 @@ services:
   envs:
   - key: OPENROUTER_API_KEY
     scope: RUN_AND_BUILD_TIME
-    value: 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
+    value: sk-or-...
   - key: TESSELLATE_AGENT_MODEL
     scope: RUN_AND_BUILD_TIME
     value: o3
