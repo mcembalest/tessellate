@@ -17,12 +17,18 @@
             <span class="red-text">Red: 1</span> | <span class="blue-text">Blue: 1</span>
         </div>
         <div id="turn-indicator">Current Turn: <span class="red-text">Red</span></div>
-        <div id="ai-explanation" style="margin-top:6px; font-size:0.95em; color:#ddd; display:none; white-space: pre-wrap; max-height: 160px; overflow:auto;"></div>
     </div>
 
     <div id="game-container">
         <canvas id="game-board"></canvas>
     </div>
+
+    <aside id="ai-sidebar" class="ai-sidebar" aria-live="polite" style="display:none;">
+        <div class="sidebar-panel">
+            <div class="sidebar-title">Agent's Thinking</div>
+            <div id="ai-explanation" class="ai-explanation" style="display:none;"></div>
+        </div>
+    </aside>
 
     <div class="rules" id="rules-panel">
          <p>1. A <strong>turn</strong> consists of a player placing a tile with their color on the board.</p>
@@ -58,5 +64,27 @@
     </footer>
     <script src="pqn_inference.js"></script>
     <script src="game-pvp.js"></script>
+    <script>
+    (function() {
+        function updateAISidebarVisibility() {
+            var checkbox = document.getElementById('ai-enabled');
+            var sidebar = document.getElementById('ai-sidebar');
+            if (!checkbox || !sidebar) return;
+            sidebar.style.display = checkbox.checked ? '' : 'none';
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateAISidebarVisibility);
+        } else {
+            updateAISidebarVisibility();
+        }
+
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.id === 'ai-enabled') {
+                updateAISidebarVisibility();
+            }
+        });
+    })();
+    </script>
 </body>
 </html>

@@ -23,6 +23,9 @@ let agentUrl = "https://tessellate-app-ytnku.ondigitalocean.app/";
 let aiThinking = false;
 let aiLoaderInterval = null;
 let aiLoaderPhase = 0;
+let aiStreamBuffer = '';
+let aiFlushTimer = null;
+let aiAutoScroll = true;
 
 let canvas, ctx;
 const colors = {
@@ -376,15 +379,19 @@ function resetGame() {
 function startAiLoader() {
     const expEl = document.getElementById('ai-explanation');
     if (!expEl) return;
+    expEl.dataset.streaming = '1';
     const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
     aiLoaderPhase = 0;
     const frames = ['.', '..', '...'];
     expEl.style.display = 'block';
-    expEl.textContent = `${colorLabel} AI is thinking`;
+    expEl.textContent += (expEl.textContent ? '\n\n' : '') + `${colorLabel} AI is thinking`;
     if (aiLoaderInterval) clearInterval(aiLoaderInterval);
     aiLoaderInterval = setInterval(() => {
         aiLoaderPhase = (aiLoaderPhase + 1) % frames.length;
-        expEl.textContent = `${colorLabel} AI is thinking${frames[aiLoaderPhase]}`;
+        const lines = expEl.textContent.split('\n');
+        lines[lines.length - 1] = `${colorLabel} AI is thinking${frames[aiLoaderPhase]}`;
+        expEl.textContent = lines.join('\n');
+        if (aiAutoScroll) expEl.scrollTop = expEl.scrollHeight;
     }, 400);
 }
 
@@ -393,6 +400,19 @@ function stopAiLoader() {
         clearInterval(aiLoaderInterval);
         aiLoaderInterval = null;
     }
+}
+
+function scheduleAiFlush() {
+    if (aiFlushTimer) return;
+    aiFlushTimer = setTimeout(() => {
+        const expEl = document.getElementById('ai-explanation');
+        if (expEl && aiStreamBuffer) {
+            expEl.textContent += aiStreamBuffer;
+            aiStreamBuffer = '';
+            if (aiAutoScroll) expEl.scrollTop = expEl.scrollHeight;
+        }
+        aiFlushTimer = null;
+    }, 60);
 }
 
 function togglePreview() {
@@ -463,6 +483,13 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Window resized");
         setupCanvas();
     });
+    const expEl2 = document.getElementById('ai-explanation');
+    if (expEl2) {
+        expEl2.addEventListener('scroll', () => {
+            const nearBottom = expEl2.scrollHeight - expEl2.clientHeight - expEl2.scrollTop < 8;
+            aiAutoScroll = nearBottom;
+        });
+    }
 });
 
 // Build model-compatible state vector (length 104)
@@ -528,54 +555,114 @@ async function maybeMakeAIMove() {
                 let buffer = '';
                 const expEl = document.getElementById('ai-explanation');
                 if (expEl) { expEl.style.display = 'block'; }
+                let sseEvent = null;
+                let sseData = '';
+                const processEvent = (eventName, dataStr) => {
+                    const payload = dataStr.trim();
+                    if (!payload) return;
+                    if (payload === '[DONE]') return;
+                    // Try typed envelope first
+                    try {
+                        const obj = JSON.parse(payload);
+                        if (obj && typeof obj === 'object' && 'type' in obj) {
+                            if ((obj.type === 'content' || obj.type === 'reasoning') && typeof obj.delta === 'string') {
+                                aiStreamBuffer += obj.delta;
+                                scheduleAiFlush();
+                                return;
+                            }
+                            if (obj.type === 'final') {
+                                action = obj.action;
+                                explanation = obj.full || '';
+                                return;
+                            }
+                            if (obj.type === 'info' && obj.message) {
+                                aiStreamBuffer += `\n\n[system] ${obj.message}`;
+                                scheduleAiFlush();
+                                return;
+                            }
+                            if (obj.type === 'error') {
+                                throw new Error(obj.message || 'stream error');
+                            }
+                        }
+                    } catch {}
+                    // Fallback: OpenAI/OpenRouter raw delta format
+                    try {
+                        const obj = JSON.parse(payload);
+                        const choice = obj.choices && obj.choices[0];
+                        const delta = choice && choice.delta ? choice.delta : {};
+                        // Reasoning token support
+                        let reasonTxt = null;
+                        if (delta.reasoning) {
+                            if (typeof delta.reasoning === 'string') reasonTxt = delta.reasoning;
+                            else if (typeof delta.reasoning === 'object') {
+                                reasonTxt = delta.reasoning.text || delta.reasoning.content || null;
+                            }
+                        }
+                        if (reasonTxt) {
+                            aiStreamBuffer += reasonTxt;
+                            scheduleAiFlush();
+                        }
+                        const contentTxt = (typeof delta.content === 'string') ? delta.content : null;
+                        if (contentTxt) {
+                            aiStreamBuffer += contentTxt;
+                            scheduleAiFlush();
+                        }
+                        return;
+                    } catch {}
+                    // last resort: append raw
+                    aiStreamBuffer += payload;
+                    scheduleAiFlush();
+                };
+
                 while (true) {
                     const { value, done } = await reader.read();
                     if (done) break;
                     buffer += decoder.decode(value, { stream: true });
-                    while (true) {
-                        const lineEnd = buffer.indexOf('\n');
-                        if (lineEnd === -1) break;
-                        const rawLine = buffer.slice(0, lineEnd);
-                        buffer = buffer.slice(lineEnd + 1);
-                        const line = rawLine.trim();
-                        if (!line) continue;
-                        if (line.startsWith('data: ')) {
-                            const payload = line.slice(6);
-                            if (payload === '[DONE]') continue;
-                            try {
-                                const obj = JSON.parse(payload);
-                                if ((obj.type === 'content' || obj.type === 'reasoning') && typeof obj.delta === 'string') {
-                                    if (expEl) {
-                                        const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
-                                        if (!expEl.dataset.streaming) {
-                                            expEl.dataset.streaming = '1';
-                                            expEl.textContent = `${colorLabel} AI: `;
-                                        }
-                                        // Label reasoning vs content lightly
-                                        if (obj.type === 'reasoning') {
-                                            expEl.textContent += obj.delta;
-                                        } else {
-                                            expEl.textContent += obj.delta;
-                                        }
-                                    }
-                                } else if (obj.type === 'final') {
-                                    action = obj.action;
-                                    explanation = obj.full || '';
-                                } else if (obj.type === 'error') {
-                                    throw new Error(obj.message || 'stream error');
-                                }
-                            } catch (e) {
-                                // ignore malformed lines
+                    let idx;
+                    while ((idx = buffer.indexOf('\n')) !== -1) {
+                        const rawLine = buffer.slice(0, idx);
+                        buffer = buffer.slice(idx + 1);
+                        if (rawLine === '') {
+                            if (sseData) {
+                                processEvent(sseEvent, sseData);
+                                sseEvent = null;
+                                sseData = '';
                             }
+                            continue;
                         }
+                        if (rawLine.startsWith('event:')) {
+                            sseEvent = rawLine.slice(6).trim();
+                            continue;
+                        }
+                        if (rawLine.startsWith('data:')) {
+                            sseData += rawLine.slice(5).trimStart() + '\n';
+                            continue;
+                        }
+                        // comments/other fields ignored
                     }
-                    if (action !== -1 && typeof action === 'number') {
-                        break; // we have the final action
-                    }
+                    if (action !== -1 && typeof action === 'number') break;
                 }
                 try { reader.cancel(); } catch {}
                 if (typeof action !== 'number' || !valid_actions.includes(action)) {
-                    throw new Error('No valid action from stream');
+                    // If stream doesn't supply final, request non-stream final action
+                    const res2 = await fetch(`${agentUrl}/move`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ state, valid_actions })
+                    });
+                    if (!res2.ok) {
+                        const expEl2 = document.getElementById('ai-explanation');
+                        let errText = `${res2.status} ${res2.statusText}`;
+                        try { const t = await res2.text(); if (t) errText = `${errText} - ${t}`; } catch {}
+                        if (expEl2) {
+                            expEl2.style.display = 'block';
+                            expEl2.textContent += `\n\nAI error: ${errText}`;
+                        }
+                        return;
+                    }
+                    const data = await res2.json();
+                    action = (data && typeof data.action === 'number') ? data.action : -1;
+                    if (data && typeof data.explanation === 'string') explanation = data.explanation;
                 }
             } catch (streamErr) {
                 // Fallback to non-streaming JSON endpoint
@@ -618,17 +705,13 @@ async function maybeMakeAIMove() {
             updateTurnIndicator();
             checkGameOver();
             drawBoard();
-            // Show a brief explanation if provided by the agent server
+            // Do not overwrite streamed content; append a concise end-of-turn marker instead
             const expEl = document.getElementById('ai-explanation');
             if (expEl) {
-                if (explanation && !gameOver) {
-                    expEl.style.display = 'block';
-                    const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
-                    expEl.textContent = `${colorLabel} AI: ${explanation}`;
-                } else {
-                    expEl.style.display = 'none';
-                    expEl.textContent = '';
-                }
+                expEl.style.display = 'block';
+                const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
+                expEl.textContent += `\n\n— ${colorLabel} move applied.`;
+                if (aiAutoScroll) expEl.scrollTop = expEl.scrollHeight;
             }
         }
     } catch (e) {

@@ -156,7 +156,7 @@ def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List
         "You are playing Tessellate. Place one triangular tile per turn.\n"
         "Respond in two labeled lines so we can display your thinking without private chain-of-thought.\n"
         "- Move: a single coordinate (prefer [A0] or visual A0-UR).\n"
-        "- Reasoning: a concise high-level rationale (1-6 lines) focusing on island growth, blocking, and flexibility.\n"
+        "- Reasoning: a concise high-level rationale (1-2 lines).\n"
         "Valid row letters: A-J (logical grid), or A-E with UL/UR/LL/LR for the visual squares. Choose only empty (not blocked) positions.\n"
     )
     msg = (
@@ -293,102 +293,99 @@ def create_app(model_name: str) -> FastAPI:
             "reasoning": reasoning_cfg,
         }
 
-        # Shared buffers and state across the generator and finalizer
-        full_content: list[str] = []
-        full_reasoning: list[str] = []
+        # Stream with up to 2 retries if the model returns an invalid move format
         final_sent: bool = False
+        max_attempts = 2
 
         def event_stream():
             nonlocal final_sent
-            try:
-                with requests.post(url, headers=headers, json=payload, stream=True, timeout=None) as r:
-                    r.raise_for_status()
-                    buffer = ""
-                    for chunk in r.iter_content(chunk_size=1024, decode_unicode=True):
-                        if not chunk:
-                            continue
-                        buffer += chunk
-                        while True:
-                            line_end = buffer.find("\n")
-                            if line_end == -1:
-                                break
-                            line = buffer[:line_end].strip()
-                            buffer = buffer[line_end + 1:]
-                            if not line:
+            import json as _json
+            attempt = 0
+            current_messages = list(payload["messages"])  # type: ignore
+            while attempt <= max_attempts:
+                full_content: list[str] = []
+                full_reasoning: list[str] = []
+                try:
+                    current_payload = dict(payload)
+                    current_payload["messages"] = list(current_messages)
+                    with requests.post(url, headers=headers, json=current_payload, stream=True, timeout=None) as r:
+                        r.raise_for_status()
+                        buffer = ""
+                        for chunk in r.iter_content(chunk_size=1024, decode_unicode=True):
+                            if not chunk:
                                 continue
-                            if line.startswith(":"):
-                                # comment per SSE spec
-                                continue
-                            if not line.startswith("data: "):
-                                continue
-                            data = line[6:]
-                            if data == "[DONE]":
-                                # Close out with final action
-                                final_text = ("".join(full_reasoning) + "\n" + "".join(full_content)).strip()
-                                r_c = parse_llm_move(final_text)
-                                action = None
-                                if r_c[0] is not None and r_c[1] is not None:
-                                    action = r_c[0]*10 + r_c[1]
-                                    if action not in req.valid_actions:
-                                        action = None
-                                if action is None:
-                                    import json as _json
-                                    yield f"data: {_json.dumps({"type": "error", "message": "Could not parse a valid move from agent output."})}\n\n"
-                                else:
-                                    final_event = {"type": "final", "action": action, "full": final_text}
-                                    import json as _json
-                                    yield f"data: {_json.dumps(final_event)}\n\n"
-                                final_sent = True
-                                return
-                            # Parse JSON chunk
-                            try:
-                                import json as _json
-                                obj = _json.loads(data)
-                                delta = obj.get("choices", [{}])[0].get("delta", {})
-                                # Stream reasoning tokens if present
-                                reasoning_delta = delta.get("reasoning")
-                                if reasoning_delta:
-                                    # Some providers may return objects; coerce to str
-                                    if isinstance(reasoning_delta, dict):
-                                        reasoning_str = reasoning_delta.get("text") or reasoning_delta.get("content") or _json.dumps(reasoning_delta)
+                            buffer += chunk
+                            while True:
+                                line_end = buffer.find("\n")
+                                if line_end == -1:
+                                    break
+                                line = buffer[:line_end].strip()
+                                buffer = buffer[line_end + 1:]
+                                if not line:
+                                    continue
+                                if line.startswith(":"):
+                                    continue
+                                if not line.startswith("data: "):
+                                    continue
+                                data = line[6:]
+                                if data == "[DONE]":
+                                    final_text = ("".join(full_reasoning) + "\n" + "".join(full_content)).strip()
+                                    r_c = parse_llm_move(final_text)
+                                    action = None
+                                    if r_c[0] is not None and r_c[1] is not None:
+                                        action = r_c[0]*10 + r_c[1]
+                                        if action not in req.valid_actions:
+                                            action = None
+                                    if action is None:
+                                        attempt += 1
+                                        if attempt > max_attempts:
+                                            yield f"data: {_json.dumps({"type": "error", "message": "Could not parse a valid move from agent output after retries."})}\n\n"
+                                            return
+                                        # append a corrective instruction and retry
+                                        available = ", ".join(str(a) for a in req.valid_actions[:100])
+                                        corrective = (
+                                            "Your previous reply did not specify a valid coordinate.\n"
+                                            "Only answer with ONE coordinate using either [A0] or A0-UR syntax, and it must map to one of these valid flat IDs: "
+                                            f"{available}.\n"
+                                            "Do not include explanations before the coordinate; you may include a short Reasoning after the Move line.\n"
+                                            "Format strictly as:\nMove: [A0]\nReasoning: <one line>\n"
+                                        )
+                                        yield f"data: {_json.dumps({"type": "info", "message": "Invalid move format. Retrying..."})}\n\n"
+                                        current_messages = list(current_messages) + [{"role": "user", "content": corrective}]
+                                        break  # break inner while to start next attempt
                                     else:
-                                        reasoning_str = str(reasoning_delta)
-                                    full_reasoning.append(reasoning_str)
-                                    out_r = {"type": "reasoning", "delta": reasoning_str}
-                                    yield f"data: {_json.dumps(out_r)}\n\n"
-                                content = delta.get("content")
-                                if content:
-                                    full_content.append(content)
-                                    out = {"type": "content", "delta": content}
-                                    yield f"data: {_json.dumps(out)}\n\n"
-                            except Exception:
-                                # Ignore malformed lines
-                                pass
-            except Exception as e:
-                import json as _json
-                err = {"type": "error", "message": f"{type(e).__name__}: {e}"}
-                yield f"data: {_json.dumps(err)}\n\n"
+                                        final_event = {"type": "final", "action": action, "full": final_text}
+                                        yield f"data: {_json.dumps(final_event)}\n\n"
+                                        final_sent = True
+                                        return
+                                try:
+                                    obj = _json.loads(data)
+                                    delta = obj.get("choices", [{}])[0].get("delta", {})
+                                    reasoning_delta = delta.get("reasoning")
+                                    if reasoning_delta:
+                                        if isinstance(reasoning_delta, dict):
+                                            reasoning_str = reasoning_delta.get("text") or reasoning_delta.get("content") or _json.dumps(reasoning_delta)
+                                        else:
+                                            reasoning_str = str(reasoning_delta)
+                                        full_reasoning.append(reasoning_str)
+                                        yield f"data: {_json.dumps({"type": "reasoning", "delta": reasoning_str})}\n\n"
+                                    content = delta.get("content")
+                                    if content:
+                                        full_content.append(content)
+                                        yield f"data: {_json.dumps({"type": "content", "delta": content})}\n\n"
+                                except Exception:
+                                    pass
+                except Exception as e:
+                    yield f"data: {_json.dumps({"type": "error", "message": f"{type(e).__name__}: {e}"})}\n\n"
+                    return
+            # exhausted attempts
+            yield f"data: {_json.dumps({"type": "error", "message": "Stream ended without a final action."})}\n\n"
 
         def with_final_action():
-            # Wrap generator to append a final action event on connection close if provider doesn't send [DONE]
             for ev in event_stream():
                 yield ev
-            # On generator end, emit final if possible
-            if final_sent:
-                return
-            import json as _json
-            final_text = ("".join(full_reasoning) + "\n" + "".join(full_content)).strip()
-            r_c = parse_llm_move(final_text)
-            action = None
-            if r_c[0] is not None and r_c[1] is not None:
-                action = r_c[0]*10 + r_c[1]
-                if action not in req.valid_actions:
-                    action = None
-            if action is None:
-                yield f"data: {_json.dumps({"type": "error", "message": "Could not parse a valid move from agent output."})}\n\n"
-            else:
-                final_event = {"type": "final", "action": action, "full": final_text}
-                yield f"data: {_json.dumps(final_event)}\n\n"
+            # nothing else to do; event_stream handles retries and final
+            return
 
         return StreamingResponse(
             with_final_action(),
