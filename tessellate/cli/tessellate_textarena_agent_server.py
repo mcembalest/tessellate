@@ -461,9 +461,9 @@ def create_app(model_name: str) -> FastAPI:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default=os.environ.get("TESSELLATE_AGENT_MODEL", "anthropic/claude-3.7-sonnet"))
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8001)
+    parser.add_argument("--model", default=os.environ.get("TESSELLATE_AGENT_MODEL", "openai/gpt-5-mini"))
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
 
     app = create_app(model_name=args.model)
