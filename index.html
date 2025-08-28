@@ -16,30 +16,75 @@
         <div id="score-display">
             <span class="red-text">Red: 1</span> | <span class="blue-text">Blue: 1</span>
         </div>
+        <div id="score-factors" style="opacity:0.8; font-size:0.9em; margin-top:2px;"></div>
         <div id="turn-indicator">Current Turn: <span class="red-text">Red</span></div>
     </div>
 
-    <div id="game-container">
-        <canvas id="game-board"></canvas>
+    <div class="board-frame" id="board-frame">
+        <div class="corner-spacer" aria-hidden="true"></div>
+        <div class="col-labels" aria-hidden="true">
+            <div>0</div>
+            <div>1</div>
+            <div>2</div>
+            <div>3</div>
+            <div>4</div>
+        </div>
+        <div class="row-labels" aria-hidden="true">
+            <div>A</div>
+            <div>B</div>
+            <div>C</div>
+            <div>D</div>
+            <div>E</div>
+        </div>
+        <div id="game-container">
+            <canvas id="game-board"></canvas>
+        </div>
     </div>
 
     <aside id="ai-sidebar" class="ai-sidebar" aria-live="polite" style="display:none;">
         <div class="sidebar-panel">
-            <div class="sidebar-title">Agent's Thinking</div>
-            <div id="ai-explanation" class="ai-explanation" style="display:none;"></div>
+            <div id="thinking-panel" class="section-panel">
+                <div class="panel-header">
+                    <div class="sidebar-title">Agent's Thinking</div>
+                    <button id="collapse-thinking" class="collapse-btn" aria-expanded="true" aria-controls="thinking-content" title="Collapse/Expand">▾</button>
+                </div>
+                <div id="thinking-content" class="panel-content">
+                    <div id="ai-explanation" class="ai-explanation" style="display:none;">
+                        <div id="ai-loader"></div>
+                        <div id="ai-stream"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="view-panel" class="section-panel">
+                <div class="panel-header">
+                    <div class="sidebar-title">Agent's View</div>
+                    <button id="collapse-view" class="collapse-btn" aria-expanded="true" aria-controls="view-content" title="Collapse/Expand">▾</button>
+                </div>
+                <div id="view-content" class="panel-content">
+                    <pre id="ai-view" class="ai-explanation ai-view" style="display:block;"></pre>
+                </div>
+            </div>
         </div>
     </aside>
 
-    <div class="rules" id="rules-panel">
-         <p>1. A <strong>turn</strong> consists of a player placing a tile with their color on the board.</p>
-         <p>2. A <strong>tile</strong> is a right triangle that fills one half of a square on the board.</p>
-         <p>3. A <strong>valid tile placement</strong> does not overlap with any tiles on the board. Thus if a square is empty, there are four ways to place a tile in it. But if a square already has one tile in it, there is only one valid way to fill it. In other words, choosing a corner of a square to place your tile in prevents you and your opponent from using the two adjacent corners in that square.</p>
-         <p>4. An <strong>island</strong> is formed by any number of tiles of the same color connected by a full edge.</p>
-         <p>5. The <strong>size of an island</strong> is the number of tiles in it.</p>
-         <p>6. A <strong>player's score</strong> is the product of all their islands (the multiplication of their islands' sizes).</p>
-         <p>7. The <strong>end of the game</strong> is when all the squares are filled and no more tiles can be placed.</p>
-         <p>8. The <strong>winner</strong> is the player with the highest score at the end of the game.</p>
-     </div>
+    <div class="rules" id="rules-panel" role="dialog" aria-modal="true" aria-hidden="true" style="display:none;">
+        <div class="rules-modal" id="rules-modal" role="document">
+            <div class="rules-header">
+                <div class="rules-title">Rules of Tessellate</div>
+                <button id="rules-close" class="close-btn" aria-label="Close">✕</button>
+            </div>
+            <div class="rules-body">
+                <p>1. A <strong>turn</strong> consists of a player placing a tile with their color on the board.</p>
+                <p>2. A <strong>tile</strong> is a right triangle that fills one half of a square on the board.</p>
+                <p>3. A <strong>valid tile placement</strong> does not overlap with any tiles on the board. Thus if a square is empty, there are four ways to place a tile in it. But if a square already has one tile in it, there is only one valid way to fill it. In other words, choosing a corner of a square to place your tile in prevents you and your opponent from using the two adjacent corners in that square.</p>
+                <p>4. An <strong>island</strong> is formed by any number of tiles of the same color connected by a full edge.</p>
+                <p>5. The <strong>size of an island</strong> is the number of tiles in it.</p>
+                <p>6. A <strong>player's score</strong> is the product of all their islands (the multiplication of their islands' sizes).</p>
+                <p>7. The <strong>end of the game</strong> is when all the squares are filled and no more tiles can be placed.</p>
+                <p>8. The <strong>winner</strong> is the player with the highest score at the end of the game.</p>
+            </div>
+        </div>
+    </div>
 
     <div id="controls">
         <button id="new-game-btn">New Game</button>
@@ -56,6 +101,7 @@
             <label>Agent URL:
                 <input id="agent-url" type="text" size="28" placeholder="Leave blank to use in-browser model" value="https://tessellate-app-ytnku.ondigitalocean.app">
             </label>
+            <label style="margin-left:10px"><input type="checkbox" id="islands-toggle" checked> Show Islands (I)</label>
         </div>
     </div>
 
@@ -72,11 +118,33 @@
             if (!checkbox || !sidebar) return;
             sidebar.style.display = checkbox.checked ? '' : 'none';
         }
+        function wireRulesModal() {
+            var rulesPanel = document.getElementById('rules-panel');
+            var rulesModal = document.getElementById('rules-modal');
+            var closeBtn = document.getElementById('rules-close');
+            if (closeBtn && rulesPanel) {
+                closeBtn.addEventListener('click', function() {
+                    rulesPanel.setAttribute('aria-hidden', 'true');
+                    rulesPanel.style.display = 'none';
+                });
+            }
+            // Click outside to close
+            if (rulesPanel) {
+                rulesPanel.addEventListener('click', function(e) {
+                    if (!rulesModal) return;
+                    if (!rulesModal.contains(e.target)) {
+                        rulesPanel.setAttribute('aria-hidden', 'true');
+                        rulesPanel.style.display = 'none';
+                    }
+                });
+            }
+        }
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', updateAISidebarVisibility);
+            document.addEventListener('DOMContentLoaded', function(){ updateAISidebarVisibility(); wireRulesModal(); });
         } else {
             updateAISidebarVisibility();
+            wireRulesModal();
         }
 
         document.addEventListener('change', function(e) {

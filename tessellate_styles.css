@@ -89,8 +89,61 @@ h1 {
     position: relative;
     margin: 12px auto 8px;
     width: min(92vw, 560px);
-    max-width: 560px;
+    max-width: 475px;
     aspect-ratio: 1 / 1;
+}
+
+/* Outer labels around the board */
+.board-frame {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 6px;
+    align-items: start;
+    justify-items: start;
+    margin: 8px 0 4px;
+}
+.board-frame .corner-spacer {
+    width: 12px;
+    height: 12px;
+}
+.board-frame .col-labels {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    width: min(92vw, 560px);
+    max-width: 475px;
+    color: var(--muted-text);
+    font-size: clamp(10px, 1.8vw, 12px);
+    opacity: 0.7;
+    letter-spacing: 0.3px;
+}
+.board-frame .col-labels > div {
+    text-align: center;
+}
+.board-frame .row-labels {
+    grid-column: 1;
+    grid-row: 2;
+    display: grid;
+    grid-auto-rows: 1fr;
+    height: min(92vw, 560px);
+    max-height: 475px;
+    align-items: center;
+    color: var(--muted-text);
+    font-size: clamp(10px, 1.8vw, 12px);
+    opacity: 0.7;
+    letter-spacing: 0.3px;
+    padding-right: 4px;
+}
+.board-frame #game-container {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+@media (max-width: 520px) {
+    .board-frame .col-labels { gap: 0; }
+    .board-frame .row-labels { padding-right: 2px; }
 }
 
 canvas {
@@ -162,19 +215,77 @@ footer {
     padding: 10px;
     width: 100%;
 }
+.rules { display: none; position: fixed; inset: 0; z-index: 1999; background: rgba(0,0,0,0.08); }
 
-.rules {
-    max-width: 720px;
-    margin: 15px auto;
+.rules[aria-hidden="false"] { display: block; }
+
+.rules-modal {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    padding: 28px 22px;
+    width: min(92vw, 600px);
+    max-height: 90vh;
+    background: radial-gradient(120% 140% at 50% -10%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 40%, rgba(255,255,255,0.02) 70%),
+                linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%),
+                var(--header-color);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 16px;
+    box-shadow: var(--shadow-1);
+    color: var(--text-color);
+    z-index: 2000;
+}
+
+.rules-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.rules-title {
+    font-size: clamp(18px, 5vw, 28px);
+    font-weight: 600;
+    letter-spacing: 0.6px;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    min-width: 0;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 6px;
+    background: var(--panel-bg);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.rules-body {
+    flex: 1 1 auto;
+    overflow: auto;
+    border-radius: 14px;
+    padding: 18px 16px;
     background: linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%), var(--panel-bg);
     border: 1px solid var(--panel-border);
-    padding: 16px;
-    border-radius: 12px;
-    display: none; 
-    width: 90%;
     box-shadow: var(--shadow-1);
-    backdrop-filter: blur(8px) saturate(140%);
 }
+
+.rules-body p { margin: 0 0 10px 0; line-height: 1.5; }
 
 .rules h2 {
     margin-top: 0;
@@ -219,6 +330,22 @@ footer {
     backdrop-filter: blur(10px) saturate(140%);
 }
 
+.section-panel { margin-bottom: 12px; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel-content { margin-top: 6px; }
+.collapse-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 100%), var(--panel-bg);
+    color: var(--text-color);
+    cursor: pointer;
+}
+.ai-view {
+    white-space: pre-wrap;
+}
+
 .sidebar-title {
     font-weight: 200;
     /* margin-bottom: 10px; */
@@ -231,6 +358,11 @@ footer {
     color: #e8ecf7;
     white-space: pre-wrap;
     line-height: 1.35;
+}
+
+/* Canvas overlay labels (drawn onto canvas; kept for color reference) */
+.island-label {
+    font-weight: 600;
 }
 
 /* Subtle top/bottom fade masks to imply continuity */

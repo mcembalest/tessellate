@@ -145,6 +145,58 @@ class MoveResponse(BaseModel):
     action: int
     explanation: str | None = None
 
+def island_summary(game: TessellateGame) -> str:
+    sizes = {TileState.RED: [], TileState.BLUE: []}
+    visited = [[False for _ in range(game.LOGICAL_GRID_SIZE)] for _ in range(game.LOGICAL_GRID_SIZE)]
+
+    def neighbors(r: int, c: int):
+        pow_neg1_r = 1 if r % 2 == 0 else -1
+        pow_neg1_c = 1 if c % 2 == 0 else -1
+        pow_neg1_r_plus_1 = 1 if (r + 1) % 2 == 0 else -1
+        pow_neg1_c_plus_1 = 1 if (c + 1) % 2 == 0 else -1
+        pow_neg1_r_c_1 = 1 if (r + c + 1) % 2 == 0 else -1
+        cand = [
+            (r + pow_neg1_r, c + pow_neg1_c),
+            (r - 1, c - pow_neg1_r_c_1),
+            (r + 1, c + pow_neg1_r_c_1),
+            (r + pow_neg1_r_plus_1, c),
+            (r, c + pow_neg1_c_plus_1),
+        ]
+        return [(rr, cc) for rr, cc in cand if 0 <= rr < game.LOGICAL_GRID_SIZE and 0 <= cc < game.LOGICAL_GRID_SIZE]
+
+    for r in range(game.LOGICAL_GRID_SIZE):
+        for c in range(game.LOGICAL_GRID_SIZE):
+            color = game.board[r][c]
+            if color in (TileState.RED, TileState.BLUE) and not visited[r][c]:
+                stack = [(r, c)]
+                size = 0
+                while stack:
+                    rr, cc = stack.pop()
+                    if not (0 <= rr < game.LOGICAL_GRID_SIZE and 0 <= cc < game.LOGICAL_GRID_SIZE):
+                        continue
+                    if visited[rr][cc] or game.board[rr][cc] != color:
+                        continue
+                    visited[rr][cc] = True
+                    size += 1
+                    for nr, nc in neighbors(rr, cc):
+                        if not visited[nr][nc] and game.board[nr][nc] == color:
+                            stack.append((nr, nc))
+                if size:
+                    sizes[color].append(size)
+
+    def fmt(arr):
+        if not arr:
+            return '–', 1
+        arr2 = sorted(arr, reverse=True)
+        prod = 1
+        for x in arr2:
+            prod *= x
+        return '×'.join(str(x) for x in arr2), prod
+
+    red_str, red_prod = fmt(sizes[TileState.RED])
+    blue_str, blue_prod = fmt(sizes[TileState.BLUE])
+    return f"Islands — Red: [{red_str}] => {red_prod}; Blue: [{blue_str}] => {blue_prod}"
+
 
 def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List[int]) -> str:
     # Borrow Env rendering to keep visuals consistent
@@ -159,8 +211,10 @@ def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List
         "- Reasoning: a concise high-level rationale (1-2 lines).\n"
         "Valid row letters: A-J (logical grid), or A-E with UL/UR/LL/LR for the visual squares. Choose only empty (not blocked) positions.\n"
     )
+    summary = island_summary(game)
     msg = (
         f"{board_str}\n"
+        f"{summary}\n"
         f"Turn: {turn_str}.\n"
         f"Valid moves (visual, up to 50): {moves_visual}\n\n"
         f"{instructions}"

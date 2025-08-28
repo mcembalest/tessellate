@@ -512,75 +512,6 @@ document.getElementById('next-btn').addEventListener('click', nextMove);
 document.getElementById('last-btn').addEventListener('click', lastMove);
 document.getElementById('play-btn').addEventListener('click', togglePlay);
 
-// Canvas event listeners will be set up in setupEventListeners()
-/* mainSparklineCanvas.addEventListener('click', (e) => {
-    if (!currentGame) return;
-    
-    const rect = mainSparklineCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const ratio = x / mainSparklineCanvas.width;
-    const targetMove = Math.round(ratio * currentGame.moves.length);
-    
-    currentMoveIndex = Math.max(0, Math.min(targetMove, currentGame.moves.length));
-    updateDisplay();
-});
-
-// Main sparkline hover tooltip
-let tooltip = null;
-mainSparklineCanvas.addEventListener('mousemove', (e) => {
-    if (!currentGame) return;
-    
-    const rect = mainSparklineCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const ratio = x / mainSparklineCanvas.width;
-    const targetMove = Math.round(ratio * currentGame.moves.length);
-    
-    // Create or update tooltip
-    if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.className = 'sparkline-tooltip';
-        document.body.appendChild(tooltip);
-    }
-    
-    // Get scores at this move
-    let redScore = 1, blueScore = 1;
-    if (targetMove > 0 && targetMove <= currentGame.moves.length) {
-        if (targetMove < currentGame.moves.length) {
-            const nextMove = currentGame.moves[targetMove];
-            redScore = nextMove.score_before[RED] || nextMove.score_before['1'] || 1;
-            blueScore = nextMove.score_before[BLUE] || nextMove.score_before['2'] || 1;
-        } else {
-            redScore = currentGame.final_scores.red || 1;
-            blueScore = currentGame.final_scores.blue || 1;
-        }
-    }
-    
-    tooltip.innerHTML = `Move ${targetMove}<br>R: ${redScore} | B: ${blueScore}`;
-    tooltip.style.left = e.clientX + 10 + 'px';
-    tooltip.style.top = e.clientY - 30 + 'px';
-    tooltip.style.display = 'block';
-});
-
-}) */
-
-// All canvas event listeners moved to setupEventListeners()
-
-// // Batch selector change handler
-// document.getElementById('batch-selector').addEventListener('change', async (e) => {
-//     const batchFile = e.target.value;
-//     if (batchFile) {
-//         const loaded = await loadBatchById(batchFile);
-//         if (loaded && games.length > 0) {
-//             selectGame(0);
-//             // Use full filename for URL (without extension)
-//             const batchId = batchFile.replace('.json', '');
-//             // Update URL without reloading (game=1 for first game)
-//             const newUrl = `${window.location.pathname}?batch=${batchId}&game=1`;
-//             window.history.pushState({}, '', newUrl);
-//         }
-//     }
-// });
-
 document.getElementById('move-slider').addEventListener('input', (e) => {
     currentMoveIndex = parseInt(e.target.value);
     updateDisplay();
@@ -619,43 +550,6 @@ function getUrlParams() {
         game: params.get('game') ? parseInt(params.get('game')) - 1 : null
     };
 }
-
-// // Load available game files
-// async function loadGameDirectory() {
-//     // For GitHub Pages, we can't scan directories
-//     // So we'll just hide the batch selector and rely on default games
-//     const selector = document.getElementById('batch-selector');
-    
-//     // Check if we're on localhost (where directory scanning might work)
-//     const isLocalhost = window.location.hostname === 'localhost' || 
-//                         window.location.hostname === '127.0.0.1';
-    
-//     if (isLocalhost) {
-//         try {
-//             // Try to fetch the game_data directory listing
-//             const response = await fetch('game_data/');
-//             if (response.ok) {
-//                 const text = await response.text();
-//                 // Parse HTML directory listing for .json files
-//                 const matches = text.match(/href="([^"]+\.json)"/g);
-//                 if (matches) {
-//                     const files = matches.map(m => m.match(/href="([^"]+)"/)[1]);
-//                     const batchFiles = files.filter(f => f.startsWith('batch_'));
-//                     console.log(`Found ${batchFiles.length} batch files`);
-//                     populateBatchSelectorFromFiles(batchFiles);
-//                     selector.style.display = 'block';
-//                     return true;
-//                 }
-//             }
-//         } catch (error) {
-//             console.log('Could not scan directory:', error);
-//         }
-//     }
-    
-//     // For GitHub Pages or if scanning fails, hide the selector
-//     selector.style.display = 'none';
-//     return true;
-// }
 
 // Populate batch selector from file list
 function populateBatchSelectorFromFiles(batchFiles) {
