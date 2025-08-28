@@ -28,10 +28,12 @@ import random
 import re
 from typing import List, Tuple
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 import uvicorn
+import requests
 import textarena as ta
 
 from tessellate.game import TessellateGame, TileState
@@ -225,6 +227,180 @@ def create_app(model_name: str) -> FastAPI:
 
         return MoveResponse(action=action, explanation=explanation)
 
+    @app.post("/move_stream")
+    def move_stream(req: MoveRequest):
+        """Stream the model's response via SSE while also returning a final action at the end.
+
+        Event types:
+          data: {"type":"content","delta":"..."}
+          data: {"type":"final","action":<int>,"full":"..."}
+          data: {"type":"error","message":"..."}
+        """
+        if not req.valid_actions:
+            return PlainTextResponse("No valid actions provided", status_code=400)
+
+        # Rebuild game for prompt and parsing
+        try:
+            game = state_to_game(req.state)
+        except Exception as e:
+            return PlainTextResponse(f"Bad state: {e}", status_code=400)
+
+        prompt = build_prompt(env, game, req.valid_actions)
+
+        # Prepare OpenRouter streaming request
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        model = model_name
+        if not api_key:
+            return PlainTextResponse("OPENROUTER_API_KEY not set", status_code=500)
+
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        # Optional OpenRouter headers for project keys / referral tracking
+        http_referer = os.environ.get("OPENROUTER_HTTP_REFERER")
+        if http_referer:
+            headers["HTTP-Referer"] = http_referer
+        x_title = os.environ.get("OPENROUTER_X_TITLE")
+        if x_title:
+            headers["X-Title"] = x_title
+        # Reasoning tokens configuration (env-controlled)
+        reasoning_cfg: dict | None = {}
+        effort = os.environ.get("OPENROUTER_REASONING_EFFORT")  # e.g., high|medium|low
+        max_tok = os.environ.get("OPENROUTER_REASONING_MAX_TOKENS")  # integer string
+        exclude = os.environ.get("OPENROUTER_REASONING_EXCLUDE")  # "true" to exclude
+        enabled = os.environ.get("OPENROUTER_REASONING_ENABLED")  # "true" to force enable
+        try:
+            if max_tok is not None:
+                reasoning_cfg["max_tokens"] = int(max_tok)
+            if effort:
+                reasoning_cfg["effort"] = effort
+            if exclude is not None:
+                reasoning_cfg["exclude"] = (str(exclude).lower() == "true")
+            if enabled is not None:
+                reasoning_cfg["enabled"] = (str(enabled).lower() == "true")
+        except Exception:
+            reasoning_cfg = {}
+        if not reasoning_cfg:
+            # Default to enabling reasoning at medium effort if not otherwise specified
+            reasoning_cfg = {"effort": "medium"}
+
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+            "reasoning": reasoning_cfg,
+        }
+
+        # Shared buffers and state across the generator and finalizer
+        full_content: list[str] = []
+        full_reasoning: list[str] = []
+        final_sent: bool = False
+
+        def event_stream():
+            nonlocal final_sent
+            try:
+                with requests.post(url, headers=headers, json=payload, stream=True, timeout=None) as r:
+                    r.raise_for_status()
+                    buffer = ""
+                    for chunk in r.iter_content(chunk_size=1024, decode_unicode=True):
+                        if not chunk:
+                            continue
+                        buffer += chunk
+                        while True:
+                            line_end = buffer.find("\n")
+                            if line_end == -1:
+                                break
+                            line = buffer[:line_end].strip()
+                            buffer = buffer[line_end + 1:]
+                            if not line:
+                                continue
+                            if line.startswith(":"):
+                                # comment per SSE spec
+                                continue
+                            if not line.startswith("data: "):
+                                continue
+                            data = line[6:]
+                            if data == "[DONE]":
+                                # Close out with final action
+                                final_text = ("".join(full_reasoning) + "\n" + "".join(full_content)).strip()
+                                r_c = parse_llm_move(final_text)
+                                action = None
+                                if r_c[0] is not None and r_c[1] is not None:
+                                    action = r_c[0]*10 + r_c[1]
+                                    if action not in req.valid_actions:
+                                        action = None
+                                if action is None:
+                                    import json as _json
+                                    yield f"data: {_json.dumps({"type": "error", "message": "Could not parse a valid move from agent output."})}\n\n"
+                                else:
+                                    final_event = {"type": "final", "action": action, "full": final_text}
+                                    import json as _json
+                                    yield f"data: {_json.dumps(final_event)}\n\n"
+                                final_sent = True
+                                return
+                            # Parse JSON chunk
+                            try:
+                                import json as _json
+                                obj = _json.loads(data)
+                                delta = obj.get("choices", [{}])[0].get("delta", {})
+                                # Stream reasoning tokens if present
+                                reasoning_delta = delta.get("reasoning")
+                                if reasoning_delta:
+                                    # Some providers may return objects; coerce to str
+                                    if isinstance(reasoning_delta, dict):
+                                        reasoning_str = reasoning_delta.get("text") or reasoning_delta.get("content") or _json.dumps(reasoning_delta)
+                                    else:
+                                        reasoning_str = str(reasoning_delta)
+                                    full_reasoning.append(reasoning_str)
+                                    out_r = {"type": "reasoning", "delta": reasoning_str}
+                                    yield f"data: {_json.dumps(out_r)}\n\n"
+                                content = delta.get("content")
+                                if content:
+                                    full_content.append(content)
+                                    out = {"type": "content", "delta": content}
+                                    yield f"data: {_json.dumps(out)}\n\n"
+                            except Exception:
+                                # Ignore malformed lines
+                                pass
+            except Exception as e:
+                import json as _json
+                err = {"type": "error", "message": f"{type(e).__name__}: {e}"}
+                yield f"data: {_json.dumps(err)}\n\n"
+
+        def with_final_action():
+            # Wrap generator to append a final action event on connection close if provider doesn't send [DONE]
+            for ev in event_stream():
+                yield ev
+            # On generator end, emit final if possible
+            if final_sent:
+                return
+            import json as _json
+            final_text = ("".join(full_reasoning) + "\n" + "".join(full_content)).strip()
+            r_c = parse_llm_move(final_text)
+            action = None
+            if r_c[0] is not None and r_c[1] is not None:
+                action = r_c[0]*10 + r_c[1]
+                if action not in req.valid_actions:
+                    action = None
+            if action is None:
+                yield f"data: {_json.dumps({"type": "error", "message": "Could not parse a valid move from agent output."})}\n\n"
+            else:
+                final_event = {"type": "final", "action": action, "full": final_text}
+                yield f"data: {_json.dumps(final_event)}\n\n"
+
+        return StreamingResponse(
+            with_final_action(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                # Disable buffering on proxies like Nginx used by some PaaS
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     @app.get("/health")
     def health():
         return {"ok": True, "model": model_name}
@@ -234,7 +410,7 @@ def create_app(model_name: str) -> FastAPI:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default=os.environ.get("TESSELLATE_AGENT_MODEL", "o4-mini"))
+    parser.add_argument("--model", default=os.environ.get("TESSELLATE_AGENT_MODEL", "anthropic/claude-3.7-sonnet"))
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8001)
     args = parser.parse_args()

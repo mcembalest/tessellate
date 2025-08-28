@@ -512,24 +512,92 @@ async function maybeMakeAIMove() {
             const modelUrl = 'model/pqn_model_batch50.json';
             action = await window.PQN.selectAction(modelUrl, state, valid_actions);
         } else {
-            const res = await fetch(`${agentUrl}/move`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ state, valid_actions })
-            });
-            if (!res.ok) {
+            // Try streaming endpoint first
+            try {
+                const res = await fetch(`${agentUrl}/move_stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/event-stream'
+                    },
+                    body: JSON.stringify({ state, valid_actions })
+                });
+                if (!res.ok || !res.body) throw new Error(`Streaming not available: ${res.status}`);
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
                 const expEl = document.getElementById('ai-explanation');
-                let errText = `${res.status} ${res.statusText}`;
-                try { const t = await res.text(); if (t) errText = `${errText} - ${t}`; } catch {}
-                if (expEl) {
-                    expEl.style.display = 'block';
-                    expEl.textContent = `AI error: ${errText}`;
+                if (expEl) { expEl.style.display = 'block'; }
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    while (true) {
+                        const lineEnd = buffer.indexOf('\n');
+                        if (lineEnd === -1) break;
+                        const rawLine = buffer.slice(0, lineEnd);
+                        buffer = buffer.slice(lineEnd + 1);
+                        const line = rawLine.trim();
+                        if (!line) continue;
+                        if (line.startsWith('data: ')) {
+                            const payload = line.slice(6);
+                            if (payload === '[DONE]') continue;
+                            try {
+                                const obj = JSON.parse(payload);
+                                if ((obj.type === 'content' || obj.type === 'reasoning') && typeof obj.delta === 'string') {
+                                    if (expEl) {
+                                        const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
+                                        if (!expEl.dataset.streaming) {
+                                            expEl.dataset.streaming = '1';
+                                            expEl.textContent = `${colorLabel} AI: `;
+                                        }
+                                        // Label reasoning vs content lightly
+                                        if (obj.type === 'reasoning') {
+                                            expEl.textContent += obj.delta;
+                                        } else {
+                                            expEl.textContent += obj.delta;
+                                        }
+                                    }
+                                } else if (obj.type === 'final') {
+                                    action = obj.action;
+                                    explanation = obj.full || '';
+                                } else if (obj.type === 'error') {
+                                    throw new Error(obj.message || 'stream error');
+                                }
+                            } catch (e) {
+                                // ignore malformed lines
+                            }
+                        }
+                    }
+                    if (action !== -1 && typeof action === 'number') {
+                        break; // we have the final action
+                    }
                 }
-                return; // do not proceed; no fallback
+                try { reader.cancel(); } catch {}
+                if (typeof action !== 'number' || !valid_actions.includes(action)) {
+                    throw new Error('No valid action from stream');
+                }
+            } catch (streamErr) {
+                // Fallback to non-streaming JSON endpoint
+                const res2 = await fetch(`${agentUrl}/move`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ state, valid_actions })
+                });
+                if (!res2.ok) {
+                    const expEl = document.getElementById('ai-explanation');
+                    let errText = `${res2.status} ${res2.statusText}`;
+                    try { const t = await res2.text(); if (t) errText = `${errText} - ${t}`; } catch {}
+                    if (expEl) {
+                        expEl.style.display = 'block';
+                        expEl.textContent = `AI error: ${errText}`;
+                    }
+                    return;
+                }
+                const data = await res2.json();
+                action = (data && typeof data.action === 'number') ? data.action : -1;
+                if (data && typeof data.explanation === 'string') explanation = data.explanation;
             }
-            const data = await res.json();
-            action = (data && typeof data.action === 'number') ? data.action : -1;
-            if (data && typeof data.explanation === 'string') explanation = data.explanation;
         }
         if (!valid_actions.includes(action)) {
             console.warn('Agent returned invalid action.');
