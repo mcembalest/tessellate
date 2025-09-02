@@ -478,6 +478,15 @@ def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List
 
 
 def create_app(model_name: str) -> FastAPI:
+    # Be tolerant of provider-prefixed model names like "openai/gpt-5-mini"
+    try:
+        if "/" in model_name:
+            provider, name = model_name.split("/", 1)
+            if provider.lower() == "openai" and name:
+                model_name = name
+    except Exception:
+        pass
+
     app = FastAPI(title="Tessellate OpenAI GPT-5 Agent Server")
 
     # Log model information for debugging
@@ -618,6 +627,9 @@ def create_app(model_name: str) -> FastAPI:
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
+                # In some PaaS/CDN setups (e.g., HTTP/3 over QUIC), SSE can break.
+                # Hint browsers to clear any HTTP/3 Alt-Svc for this origin to prefer H2.
+                "Alt-Svc": "clear",
             },
         )
 
