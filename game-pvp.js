@@ -748,38 +748,114 @@ function resetGame() {
     updateTurnIndicator();
     canvas.style.cursor = 'default';
     drawBoard();
-    const expEl = document.getElementById('ai-explanation');
-    const loaderEl = document.getElementById('ai-loader');
-    const streamEl = document.getElementById('ai-stream');
-    if (expEl) { expEl.style.display = 'none'; }
-    if (loaderEl) loaderEl.textContent = '';
-    if (streamEl) streamEl.textContent = '';
+
+    // Reset AI UI elements
+    updateAiStatus('ready', '🤖', 'Ready');
+    hideAiMove();
+
+    // Hide reasoning container
+    const reasoningContainer = document.getElementById('ai-reasoning-container');
+    if (reasoningContainer) {
+        reasoningContainer.style.display = 'none';
+    }
+
+    // Hide thinking loader
+    const thinkingLoader = document.getElementById('ai-thinking-loader');
+    if (thinkingLoader) {
+        thinkingLoader.style.display = 'none';
+    }
+
+    // Clear reasoning sections
+    const reasoningStream = document.getElementById('reasoning-stream');
+    const responseStream = document.getElementById('response-stream');
+    if (reasoningStream) reasoningStream.textContent = '';
+    if (responseStream) responseStream.textContent = '';
+
+    // Hide reasoning sections
+    const internalReasoning = document.getElementById('internal-reasoning');
+    const finalResponse = document.getElementById('final-response');
+    if (internalReasoning) internalReasoning.style.display = 'none';
+    if (finalResponse) finalResponse.style.display = 'none';
+
     updateAiViewPrompt();
-    
+
     maybeMakeAIMove();
 }
 
-function startAiLoader() {
-    const expEl = document.getElementById('ai-explanation');
-    const loaderEl = document.getElementById('ai-loader');
-    if (!expEl || !loaderEl) return;
-    expEl.dataset.streaming = '1';
-    const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
-    aiLoaderPhase = 0;
-    const frames = ['.', '..', '...'];
-    expEl.style.display = 'block';
-    // Only update loader area; keep streamed text separate
-    const streamEl = document.getElementById('ai-stream');
-    if (streamEl && streamEl.textContent && !streamEl.textContent.endsWith('\n')) {
-        streamEl.textContent += '\n';
+function updateAiStatus(status, icon = null, text = null) {
+    const statusText = document.getElementById('ai-status-text');
+    const statusPanel = document.getElementById('ai-status-panel');
+
+    if (statusText && text) statusText.textContent = text;
+
+    // Remove all status classes
+    if (statusPanel) {
+        statusPanel.classList.remove('ai-thinking', 'ai-ready', 'ai-error');
+        statusPanel.classList.add(`ai-${status}`);
     }
-    loaderEl.textContent = `${colorLabel} AI is thinking`;
+}
+
+function showAiMove(coord) {
+    const moveDisplay = document.getElementById('ai-move-display');
+    const moveCoord = document.getElementById('ai-move-coord');
+    if (moveDisplay && moveCoord) {
+        moveCoord.textContent = coord;
+        moveDisplay.style.display = 'block';
+    }
+}
+
+function hideAiMove() {
+    const moveDisplay = document.getElementById('ai-move-display');
+    if (moveDisplay) {
+        moveDisplay.style.display = 'none';
+    }
+}
+
+function startAiLoader() {
+    // Show the reasoning container
+    const reasoningContainer = document.getElementById('ai-reasoning-container');
+    if (reasoningContainer) {
+        reasoningContainer.style.display = 'block';
+    }
+
+    // Show thinking loader
+    const thinkingLoader = document.getElementById('ai-thinking-loader');
+    const thinkingText = document.getElementById('thinking-text');
+    if (thinkingLoader && thinkingText) {
+        const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
+        thinkingText.textContent = `${colorLabel} AI is analyzing...`;
+        thinkingLoader.style.display = 'flex';
+    }
+
+    // Update status
+    updateAiStatus('thinking', '🤔', 'Thinking');
+
+    // Clear previous reasoning
+    const reasoningStream = document.getElementById('reasoning-stream');
+    const responseStream = document.getElementById('response-stream');
+    if (reasoningStream) reasoningStream.textContent = '';
+    if (responseStream) responseStream.textContent = '';
+
+    // Hide move display
+    hideAiMove();
+
+    // Start thinking dots animation
+    aiLoaderPhase = 0;
     if (aiLoaderInterval) clearInterval(aiLoaderInterval);
     aiLoaderInterval = setInterval(() => {
-        aiLoaderPhase = (aiLoaderPhase + 1) % frames.length;
-        loaderEl.textContent = `${colorLabel} AI is thinking${frames[aiLoaderPhase]}`;
-        if (aiAutoScroll) expEl.scrollTop = expEl.scrollHeight;
-    }, 400);
+        aiLoaderPhase = (aiLoaderPhase + 1) % 4;
+        const thinkingText = document.getElementById('thinking-text');
+        if (thinkingText) {
+            const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
+            const phases = [
+                `${colorLabel} AI is analyzing`,
+                `${colorLabel} AI is analyzing.`,
+                `${colorLabel} AI is analyzing..`,
+                `${colorLabel} AI is analyzing...`
+            ];
+            thinkingText.textContent = phases[aiLoaderPhase];
+        }
+    }, 500);
 }
 
 function stopAiLoader() {
@@ -787,8 +863,15 @@ function stopAiLoader() {
         clearInterval(aiLoaderInterval);
         aiLoaderInterval = null;
     }
-    const loaderEl = document.getElementById('ai-loader');
-    if (loaderEl) loaderEl.textContent = '';
+
+    // Hide thinking loader
+    const thinkingLoader = document.getElementById('ai-thinking-loader');
+    if (thinkingLoader) {
+        thinkingLoader.style.display = 'none';
+    }
+
+    // Update status to ready
+    updateAiStatus('ready', '🤖', 'Ready');
 }
 
 function scheduleAiFlush() {
@@ -829,6 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupCanvas();
     updateScoreDisplay();
     updateTurnIndicator();
+    updateAiStatus('ready', '🤖', 'Ready');
     updateAiViewPrompt();
     
     canvas = document.getElementById('game-board');
@@ -1023,23 +1107,49 @@ async function maybeMakeAIMove() {
                     const payload = dataStr.trim();
                     if (!payload) return;
                     if (payload === '[DONE]') return;
-                    // Try typed envelope first
+
+                    // Try typed envelope first (our server format)
                     try {
                         const obj = JSON.parse(payload);
                         if (obj && typeof obj === 'object' && 'type' in obj) {
-                            if ((obj.type === 'content' || obj.type === 'reasoning') && typeof obj.delta === 'string') {
-                                aiStreamBuffer += obj.delta;
-                                scheduleAiFlush();
+                            if (obj.type === 'reasoning' && typeof obj.delta === 'string') {
+                                // Show internal reasoning section
+                                const reasoningSection = document.getElementById('internal-reasoning');
+                                const reasoningStream = document.getElementById('reasoning-stream');
+                                if (reasoningSection && reasoningStream) {
+                                    reasoningSection.style.display = 'block';
+                                    reasoningStream.textContent += obj.delta;
+                                    // Auto-scroll to bottom
+                                    reasoningStream.scrollTop = reasoningStream.scrollHeight;
+                                }
+                                return;
+                            }
+                            if (obj.type === 'content' && typeof obj.delta === 'string') {
+                                // Show final response section
+                                const responseSection = document.getElementById('final-response');
+                                const responseStream = document.getElementById('response-stream');
+                                if (responseSection && responseStream) {
+                                    responseSection.style.display = 'block';
+                                    responseStream.textContent += obj.delta;
+                                    // Auto-scroll to bottom
+                                    responseStream.scrollTop = responseStream.scrollHeight;
+                                }
                                 return;
                             }
                             if (obj.type === 'final') {
                                 action = obj.action;
                                 explanation = obj.full || '';
+                                // Show move coordinate if we have it
+                                if (action !== -1 && typeof action === 'number') {
+                                    const r = Math.floor(action / 10);
+                                    const c = action % 10;
+                                    const coord = rcToVisual(r, c);
+                                    showAiMove(coord);
+                                }
                                 return;
                             }
                             if (obj.type === 'info' && obj.message) {
-                                aiStreamBuffer += `\n\n[system] ${obj.message}`;
-                                scheduleAiFlush();
+                                console.log('[AI Info]:', obj.message);
                                 return;
                             }
                             if (obj.type === 'error') {
@@ -1047,11 +1157,13 @@ async function maybeMakeAIMove() {
                             }
                         }
                     } catch {}
+
                     // Fallback: OpenAI/OpenRouter raw delta format
                     try {
                         const obj = JSON.parse(payload);
                         const choice = obj.choices && obj.choices[0];
                         const delta = choice && choice.delta ? choice.delta : {};
+
                         // Reasoning token support
                         let reasonTxt = null;
                         if (delta.reasoning) {
@@ -1061,19 +1173,38 @@ async function maybeMakeAIMove() {
                             }
                         }
                         if (reasonTxt) {
-                            aiStreamBuffer += reasonTxt;
-                            scheduleAiFlush();
+                            // Show internal reasoning section
+                            const reasoningSection = document.getElementById('internal-reasoning');
+                            const reasoningStream = document.getElementById('reasoning-stream');
+                            if (reasoningSection && reasoningStream) {
+                                reasoningSection.style.display = 'block';
+                                reasoningStream.textContent += reasonTxt;
+                                reasoningStream.scrollTop = reasoningStream.scrollHeight;
+                            }
                         }
+
                         const contentTxt = (typeof delta.content === 'string') ? delta.content : null;
                         if (contentTxt) {
-                            aiStreamBuffer += contentTxt;
-                            scheduleAiFlush();
+                            // Show final response section
+                            const responseSection = document.getElementById('final-response');
+                            const responseStream = document.getElementById('response-stream');
+                            if (responseSection && responseStream) {
+                                responseSection.style.display = 'block';
+                                responseStream.textContent += contentTxt;
+                                responseStream.scrollTop = responseStream.scrollHeight;
+                            }
                         }
                         return;
                     } catch {}
-                    // last resort: append raw
-                    aiStreamBuffer += payload;
-                    scheduleAiFlush();
+
+                    // Last resort: treat as final response content
+                    const responseSection = document.getElementById('final-response');
+                    const responseStream = document.getElementById('response-stream');
+                    if (responseSection && responseStream) {
+                        responseSection.style.display = 'block';
+                        responseStream.textContent += payload;
+                        responseStream.scrollTop = responseStream.scrollHeight;
+                    }
                 };
 
                 while (true) {
@@ -1183,11 +1314,17 @@ async function maybeMakeAIMove() {
         }
     } catch (e) {
         console.error('AI move error:', e);
-        const expEl = document.getElementById('ai-explanation');
-        const streamEl = document.getElementById('ai-stream');
-        if (expEl && streamEl) {
-            expEl.style.display = 'block';
-            streamEl.textContent = `AI error: ${e && e.message ? e.message : 'Failed to fetch'}`;
+        updateAiStatus('error', '❌', 'Error');
+
+        // Show error in final response section
+        const responseSection = document.getElementById('final-response');
+        const responseStream = document.getElementById('response-stream');
+        const reasoningContainer = document.getElementById('ai-reasoning-container');
+
+        if (reasoningContainer) reasoningContainer.style.display = 'block';
+        if (responseSection && responseStream) {
+            responseSection.style.display = 'block';
+            responseStream.textContent = `AI Error: ${e && e.message ? e.message : 'Failed to fetch'}`;
         }
     } finally {
         stopAiLoader();

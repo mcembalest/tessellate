@@ -312,7 +312,7 @@ footer {
     position: fixed;
     right: 60px;
     top: 190px;
-    width: 300px;
+    width: 320px;
     max-width: 38vw;
     z-index: 1000;
 }
@@ -392,6 +392,224 @@ footer {
     .sidebar-panel {
         max-height: 260px;
     }
+}
+
+/* ===== AI REASONING UI IMPROVEMENTS ===== */
+
+/* AI Status Panel */
+.ai-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 8px;
+}
+
+.ai-status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+
+
+#ai-status-text {
+    color: var(--text-color);
+    transition: all 0.3s ease;
+}
+
+.ai-move-display {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.move-label {
+    color: var(--muted-text);
+    margin-right: 4px;
+}
+
+.move-coord {
+    color: var(--accent-color);
+    font-family: 'Courier New', monospace;
+}
+
+/* AI Reasoning Container */
+.ai-reasoning-container {
+    position: relative;
+}
+
+/* Thinking Loader */
+.ai-thinking-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+}
+
+.thinking-dots {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.thinking-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    animation: thinking-bounce 1.4s ease-in-out infinite both;
+}
+
+.thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+.thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes thinking-bounce {
+    0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.thinking-text {
+    color: var(--muted-text);
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* Reasoning Content */
+.ai-reasoning-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Reasoning Sections */
+.reasoning-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.reasoning-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+
+.reasoning-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.reasoning-text {
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+/* Different styling for thinking vs final reasoning */
+.reasoning-thinking {
+    color: var(--accent-2);
+    background: rgba(48, 213, 255, 0.03);
+    border-left: 3px solid var(--accent-2);
+}
+
+.reasoning-thinking .reasoning-header {
+    background: rgba(48, 213, 255, 0.08);
+}
+
+.reasoning-final {
+    color: var(--accent-color);
+    background: rgba(49, 89, 255, 0.03);
+    border-left: 3px solid var(--accent-color);
+}
+
+.reasoning-final .reasoning-header {
+    background: rgba(49, 89, 255, 0.08);
+}
+
+/* Game State View */
+.game-state-view {
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+    padding: 8px;
+    margin: 4px 0;
+}
+
+.ai-view-content {
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--muted-text);
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Status transitions */
+.ai-thinking .ai-status-indicator {
+    color: var(--accent-color);
+}
+
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.ai-ready #ai-status-text {
+    color: var(--text-color);
+}
+
+.ai-error #ai-status-text {
+    color: var(--red-color);
+}
+
+/* Scrollbar improvements for reasoning sections */
+.reasoning-text::-webkit-scrollbar {
+    width: 6px;
+}
+
+.reasoning-text::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+}
+
+.reasoning-text::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+}
+
+.reasoning-text::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.3);
 }
 
 /* Modern scrollbars for WebKit */

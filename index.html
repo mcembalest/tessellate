@@ -43,25 +43,68 @@
 
     <aside id="ai-sidebar" class="ai-sidebar" aria-live="polite" style="display:none;">
         <div class="sidebar-panel">
-            <div id="thinking-panel" class="section-panel">
-                <div class="panel-header">
-                    <div class="sidebar-title">Agent's Thinking</div>
-                    <button id="collapse-thinking" class="collapse-btn" aria-expanded="true" aria-controls="thinking-content" title="Collapse/Expand">▾</button>
-                </div>
-                <div id="thinking-content" class="panel-content">
-                    <div id="ai-explanation" class="ai-explanation" style="display:none;">
-                        <div id="ai-loader"></div>
-                        <div id="ai-stream"></div>
+            <!-- AI Status & Move Display -->
+            <div id="ai-status-panel" class="section-panel">
+                <div class="ai-status-header">
+                    <div class="ai-status-indicator">
+                        <span id="ai-status-text">Ready</span>
+                    </div>
+                    <div class="ai-move-display" id="ai-move-display" style="display:none;">
+                        <span class="move-label">Move:</span>
+                        <span id="ai-move-coord" class="move-coord"></span>
                     </div>
                 </div>
             </div>
+
+            <!-- Thinking Process -->
+            <div id="thinking-panel" class="section-panel">
+                <div class="panel-header">
+                    <div class="sidebar-title">AI Reasoning</div>
+                    <button id="collapse-thinking" class="collapse-btn" aria-expanded="true" aria-controls="thinking-content" title="Collapse/Expand">▾</button>
+                </div>
+                <div id="thinking-content" class="panel-content">
+                    <div id="ai-reasoning-container" class="ai-reasoning-container" style="display:none;">
+                        <!-- Thinking Loader -->
+                        <div id="ai-thinking-loader" class="ai-thinking-loader" style="display:none;">
+                            <div class="thinking-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <div class="thinking-text" id="thinking-text">Analyzing board...</div>
+                        </div>
+
+                        <!-- Reasoning Content -->
+                        <div id="ai-reasoning-content" class="ai-reasoning-content">
+                            <!-- Internal Reasoning (thinking tokens) -->
+                            <div id="internal-reasoning" class="reasoning-section" style="display:none;">
+                                <div class="reasoning-header">
+                                    <span class="reasoning-label">Internal Analysis</span>
+                                </div>
+                                <div id="reasoning-stream" class="reasoning-text reasoning-thinking"></div>
+                            </div>
+
+                            <!-- Final Response -->
+                            <div id="final-response" class="reasoning-section" style="display:none;">
+                                <div class="reasoning-header">
+                                    
+                                    
+                                </div>
+                                <div id="response-stream" class="reasoning-text reasoning-final"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent's View (Game State) -->
             <div id="view-panel" class="section-panel">
                 <div class="panel-header">
-                    <div class="sidebar-title">Agent's View</div>
+                    <div class="sidebar-title">Game State</div>
                     <button id="collapse-view" class="collapse-btn" aria-expanded="true" aria-controls="view-content" title="Collapse/Expand">▾</button>
                 </div>
                 <div id="view-content" class="panel-content">
-                    <pre id="ai-view" class="ai-explanation ai-view" style="display:block;"></pre>
+                    <div id="game-state-view" class="game-state-view">
+                        <pre id="ai-view" class="ai-view-content"></pre>
+                    </div>
                 </div>
             </div>
         </div>
