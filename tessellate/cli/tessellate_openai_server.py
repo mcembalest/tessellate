@@ -1,21 +1,8 @@
 #!/usr/bin/env python3
 """
-Run a lightweight HTTP server that lets the browser play Tessellate against
+Run an HTTP server that lets the browser play Tessellate against
 an LLM using OpenAI's Responses API (GPT-5 family).
 
-Endpoints:
-  POST /move
-    body: { "state": [104 numbers], "valid_actions": [ints like r*10+c] }
-    returns: { "action": int, "explanation": str }
-
-  POST /move_stream (Server-Sent Events)
-    streams content deltas and reasoning; ends with a final action event.
-
-Environment variables:
-  OPENAI_API_KEY                - Required
-  TESSELLATE_AGENT_MODEL        - Optional, defaults to "gpt-5-mini"
-  OPENAI_REASONING_EFFORT       - Optional, e.g. minimal|low|medium|high (default: medium)
-  OPENAI_TEXT_VERBOSITY         - Optional, e.g. low|medium|high (if unset, omitted)
 """
 
 from __future__ import annotations
@@ -23,7 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
-from typing import List, Tuple, Generator
+from typing import Dict, List, Tuple, Generator
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,25 +19,241 @@ from pydantic import BaseModel, Field
 import uvicorn
 
 from openai import OpenAI
+from openai import APIStatusError, APIConnectionError, AuthenticationError, BadRequestError, NotFoundError, RateLimitError
+import logging
 
 from tessellate.game import TessellateGame, TileState
 from tessellate.environments.tessellate_textarena_env import TessellateTaEnv, VIS_ROWS
 
 
-# ---------- Utilities ----------
+# ---------- Constants ----------
+
+# API Configuration
+DEFAULT_MODEL = "gpt-5-mini"
+DEFAULT_REASONING_EFFORT = "medium"
+DEFAULT_MAX_OUTPUT_TOKENS = 20000
+DEFAULT_TEXT_VERBOSITY = None
+
+# Game Constants
+STATE_VECTOR_LENGTH = 104
+LOGICAL_GRID_SIZE = 10
+VISUAL_GRID_SIZE = 5
+MAX_RETRY_ATTEMPTS = 2
+
+# CORS Origins
+CORS_ORIGINS = [
+    "https://tessellate-app-ytnku.ondigitalocean.app",
+    "https://mcembalest.github.io",
+    "http://localhost:8424",
+    "http://127.0.0.1:8424",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    "null"
+]
+
+# Coordinate Mappings
+CORNER_MAP = {
+    (0, 0): 'UL', (0, 1): 'UR',
+    (1, 0): 'LL', (1, 1): 'LR'
+}
+
+TILE_STATE_MAP = {
+    0: TileState.EMPTY,
+    1: TileState.RED,
+    2: TileState.BLUE,
+    3: TileState.BLOCKED
+}
+
+# Regex Patterns
+VISUAL_SQUARE_PATTERN = r"\b\[?([A-Ea-e])\s*([0-4])\s*[-, ]\s*(UL|UR|LL|LR)\]?\b"
+LOGICAL_CELL_PATTERN = r"\b\[?([A-Ja-j])\s*([0-9])\]?\b"
+RAW_TUPLE_PATTERN = r"\[\s*(\d)\s*,\s*(\d)\s*\]"
+TUPLE_VISUAL_PATTERN = r"\(\s*(\d)\s*,\s*(\d)\s*,\s*(UL|UR|LL|LR)\s*\)"
+
+# Error Messages
+ERROR_NO_VALID_ACTIONS = "No valid actions provided"
+ERROR_BAD_STATE = "Bad state: {}"
+ERROR_OPENAI_ERROR = "OpenAI error: {}: {}"
+ERROR_PARSE_MOVE = "Could not parse a valid move from model output."
+ERROR_PARSE_MOVE_RETRIES = "Could not parse a valid move from model output after retries."
+ERROR_STREAM_ENDED = "Stream ended without a final action."
+
+# Environment Variables
+ENV_OPENAI_API_KEY = "OPENAI_API_KEY"
+ENV_MODEL = "TESSELLATE_AGENT_MODEL"
+ENV_REASONING_EFFORT = "OPENAI_REASONING_EFFORT"
+ENV_TEXT_VERBOSITY = "OPENAI_TEXT_VERBOSITY"
+ENV_MAX_OUTPUT_TOKENS = "OPENAI_MAX_OUTPUT_TOKENS"
+
+# ---------- Core Game Logic ----------
+
+def get_openai_config() -> dict:
+    """Get OpenAI API configuration from environment variables."""
+    return {
+        "reasoning_effort": os.environ.get(ENV_REASONING_EFFORT, DEFAULT_REASONING_EFFORT),
+        "max_output_tokens": int(os.environ.get(ENV_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS)),
+        "text_verbosity": os.environ.get(ENV_TEXT_VERBOSITY),
+    }
+
+
+def build_openai_request_kwargs(model_name: str, prompt: str, config: dict) -> dict:
+    """Build kwargs for OpenAI API request."""
+    kwargs = {
+        "model": model_name,
+        "input": prompt,
+        "reasoning": {"effort": config["reasoning_effort"]},
+        "max_output_tokens": config["max_output_tokens"],
+    }
+
+    # Only add text verbosity if it exists and is not None
+    if config.get("text_verbosity") is not None:
+        kwargs["text"] = {"verbosity": config["text_verbosity"]}
+
+    return kwargs
+
+
+def handle_openai_error(e: Exception, operation: str, log: logging.Logger) -> None:
+    """Handle OpenAI API errors with consistent logging and HTTP exceptions."""
+    status = getattr(e, "status_code", None) or getattr(getattr(e, "response", None), "status_code", None) or 502
+    log.exception(f"OpenAI {operation} failed: %s", e)
+
+    # Handle specific error types
+    if isinstance(e, (AuthenticationError, BadRequestError, NotFoundError, RateLimitError, APIConnectionError, APIStatusError)):
+        # Extract error message for better user experience
+        error_msg = str(e)
+        if hasattr(e, 'body') and e.body:
+            try:
+                import json
+                body = json.loads(e.body)
+                if 'error' in body and 'message' in body['error']:
+                    error_msg = body['error']['message']
+            except:
+                pass
+        elif hasattr(e, 'response') and hasattr(e.response, 'text'):
+            try:
+                import json
+                body = json.loads(e.response.text)
+                if 'error' in body and 'message' in body['error']:
+                    error_msg = body['error']['message']
+            except:
+                pass
+
+        raise HTTPException(status_code=int(status), detail=f"OpenAI error: {error_msg}")
+    else:
+        raise HTTPException(status_code=502, detail=f"OpenAI error: {type(e).__name__}: {e}")
+
+
+def extract_response_text(response) -> str | None:
+    """Extract text content from OpenAI response object."""
+    try:
+        return getattr(response, "output_text", None) or str(response)
+    except Exception:
+        return None
+
+
+def extract_final_text(stream, reasoning_parts: list[str], content_parts: list[str]) -> str:
+    """Extract final text from streaming response."""
+    try:
+        final_resp = stream.get_final_response()
+        return getattr(final_resp, "output_text", None) or ("".join(reasoning_parts) + "\n" + "".join(content_parts))
+    except Exception:
+        return "".join(reasoning_parts) + "\n" + "".join(content_parts)
+
+
+def parse_and_validate_move(text: str, valid_actions: List[int]) -> int | None:
+    """Parse move from text and validate it's in valid actions."""
+    r, c = parse_llm_move(text)
+    if r is not None and c is not None:
+        action = r * LOGICAL_GRID_SIZE + c
+        if action in valid_actions:
+            return action
+    return None
+
+
+def build_corrective_prompt(base_prompt: str, valid_actions: List[int]) -> str:
+    """Build a corrective prompt for retrying invalid moves."""
+    available = ", ".join(str(a) for a in valid_actions[:100])
+    corrective = (
+        "Your previous reply did not specify a valid coordinate.\n"
+        "Only answer with ONE coordinate using either [A0] or A0-UR syntax, and it must map to one of these valid flat IDs: "
+        f"{available}.\n"
+        "Do not include explanations before the coordinate; you may include a short Reasoning after the Move line.\n"
+        "Format strictly as:\nMove: [A0]\nReasoning: <one line>\n"
+    )
+    return base_prompt + "\n\n" + corrective
+
+
+def _fallback_to_non_streaming(req: MoveRequest, env, client, log):
+    """Fallback to non-streaming mode when streaming fails."""
+    import json as _json
+
+    def non_streaming_generator():
+        try:
+            game = state_to_game(req.state)
+        except Exception as e:
+            yield f"data: {_json.dumps({'type': 'error', 'message': ERROR_BAD_STATE.format(e)})}\n\n"
+            return
+
+        prompt = build_prompt(env, game, req.valid_actions)
+        config = get_openai_config()
+        # Use the model name from the outer scope (passed to create_app)
+        kwargs = build_openai_request_kwargs("gpt-5-mini", prompt, config)  # Default fallback
+
+        try:
+            resp = client.responses.create(**kwargs)
+            explanation = extract_response_text(resp)
+
+            r, c = parse_llm_move(explanation or "")
+            action = None
+            if r is not None and c is not None:
+                action = r * LOGICAL_GRID_SIZE + c
+                if action not in req.valid_actions:
+                    action = None
+
+            if action is None:
+                yield f"data: {_json.dumps({'type': 'error', 'message': ERROR_PARSE_MOVE})}\n\n"
+            else:
+                final_event = {"type": "final", "action": action, "full": explanation or ""}
+                yield f"data: {_json.dumps(final_event)}\n\n"
+
+        except Exception as e:
+            handle_openai_error(e, "/move_stream_fallback", log)
+            yield f"data: {_json.dumps({'type': 'error', 'message': f"Fallback failed: {type(e).__name__}: {e}"})}\n\n"
+
+    return StreamingResponse(
+        non_streaming_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ---------- Coordinate Conversion Utilities ----------
+
+def corner_string_to_tuple(corner: str) -> Tuple[int, int]:
+    """Convert corner string (UL, UR, LL, LR) to tuple coordinates."""
+    corner_map_reverse = {v: k for k, v in CORNER_MAP.items()}
+    return corner_map_reverse[corner.upper()]
+
 
 def flat_to_rc(action_flat: int) -> Tuple[int, int]:
-    return action_flat // 10, action_flat % 10
+    """Convert flat action index to row/column coordinates."""
+    return action_flat // LOGICAL_GRID_SIZE, action_flat % LOGICAL_GRID_SIZE
 
 
 def rc_to_visual(r: int, c: int) -> str:
+    """Convert row/column coordinates to visual square notation (e.g., A0-UL)."""
     sr, sc = r // 2, c // 2
     cr, cc = r % 2, c % 2
-    corner = { (0,0): 'UL', (0,1): 'UR', (1,0): 'LL', (1,1): 'LR' }[(cr, cc)]
+    corner = CORNER_MAP[(cr, cc)]
     return f"{VIS_ROWS[sr]}{sc}-{corner}"
 
 
 def valid_actions_visual(valid_actions: List[int], max_items: int = 50) -> str:
+    """Format valid actions as human-readable visual coordinates."""
     items = []
     for a in valid_actions[:max_items]:
         r, c = flat_to_rc(a)
@@ -58,6 +261,37 @@ def valid_actions_visual(valid_actions: List[int], max_items: int = 50) -> str:
     if len(valid_actions) > max_items:
         items.append("...")
     return ", ".join(items)
+
+
+# ---------- LLM Response Parsing ----------
+
+def _parse_visual_square(match) -> Tuple[int, int]:
+    """Parse visual square format like [A0-UL] or A0-UL."""
+    sr = ord(match.group(1).upper()) - ord('A')
+    sc = int(match.group(2))
+    cr, cc = corner_string_to_tuple(match.group(3))
+    return 2*sr + cr, 2*sc + cc
+
+
+def _parse_logical_cell(match) -> Tuple[int, int]:
+    """Parse logical cell format like [A0] or A0."""
+    r = ord(match.group(1).upper()) - ord('A')
+    c = int(match.group(2))
+    return r, c
+
+
+def _parse_raw_tuple(match) -> Tuple[int, int]:
+    """Parse raw tuple format like [r, c]."""
+    return int(match.group(1)), int(match.group(2))
+
+
+def _parse_tuple_visual(match) -> Tuple[int, int] | None:
+    """Parse tuple visual format like (square_r, square_c, CORNER)."""
+    sr, sc = int(match.group(1)), int(match.group(2))
+    if 0 <= sr < VISUAL_GRID_SIZE and 0 <= sc < VISUAL_GRID_SIZE:
+        cr, cc = corner_string_to_tuple(match.group(3))
+        return 2*sr + cr, 2*sc + cc
+    return None
 
 
 def parse_llm_move(text: str) -> Tuple[int | None, int | None]:
@@ -69,65 +303,55 @@ def parse_llm_move(text: str) -> Tuple[int | None, int | None]:
       - Raw tuple:     [r, c]
       - Tuple visual:  (square_r, square_c, CORNER)
     """
-    # 1) Visual square format: [A0-UL]
-    m_vis = re.search(r"\b\[?([A-Ea-e])\s*([0-4])\s*[-, ]\s*(UL|UR|LL|LR)\]?\b", text)
-    if m_vis:
-        sr = ord(m_vis.group(1).upper()) - ord('A')
-        sc = int(m_vis.group(2))
-        cr, cc = {'UL': (0,0), 'UR': (0,1), 'LL': (1,0), 'LR': (1,1)}[m_vis.group(3).upper()]
-        return 2*sr + cr, 2*sc + cc
+    # Define parsers in order of preference
+    parsers = [
+        (VISUAL_SQUARE_PATTERN, _parse_visual_square),
+        (LOGICAL_CELL_PATTERN, _parse_logical_cell),
+        (RAW_TUPLE_PATTERN, _parse_raw_tuple),
+        (TUPLE_VISUAL_PATTERN, _parse_tuple_visual),
+    ]
 
-    # 2) Logical cell format: [A0]
-    m_cell = re.search(r"\b\[?([A-Ja-j])\s*([0-9])\]?\b", text)
-    if m_cell:
-        r = ord(m_cell.group(1).upper()) - ord('A')
-        c = int(m_cell.group(2))
-        return r, c
-
-    # 3) Othello-style [r, c]
-    m_rc = re.search(r"\[\s*(\d)\s*,\s*(\d)\s*\]", text)
-    if m_rc:
-        return int(m_rc.group(1)), int(m_rc.group(2))
-
-    # 4) Tuple visual: (square_r, square_c, CORNER)
-    m_tuple = re.search(r"\(\s*(\d)\s*,\s*(\d)\s*,\s*(UL|UR|LL|LR)\s*\)", text, re.IGNORECASE)
-    if m_tuple:
-        sr, sc = int(m_tuple.group(1)), int(m_tuple.group(2))
-        if 0 <= sr < 5 and 0 <= sc < 5:
-            cr, cc = {'UL': (0,0), 'UR': (0,1), 'LL': (1,0), 'LR': (1,1)}[m_tuple.group(3).upper()]
-            return 2*sr + cr, 2*sc + cc
+    for pattern, parser in parsers:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            try:
+                result = parser(match)
+                if result is not None:
+                    return result
+            except (ValueError, IndexError):
+                continue
 
     return None, None
 
 
+# ---------- Game State Management ----------
+
 def state_to_game(state: List[int]) -> TessellateGame:
-    if len(state) != 104:
-        raise ValueError("state must be length 104")
+    """Convert state vector back to TessellateGame object."""
+    if len(state) != STATE_VECTOR_LENGTH:
+        raise ValueError(f"state must be length {STATE_VECTOR_LENGTH}")
+
     game = TessellateGame()
-    # Rebuild board
+
+    # Rebuild board from first 100 elements
     for idx in range(100):
-        r, c = divmod(idx, 10)
-        v = state[idx]
-        if v == 0:
-            game.board[r][c] = TileState.EMPTY
-        elif v == 1:
-            game.board[r][c] = TileState.RED
-        elif v == 2:
-            game.board[r][c] = TileState.BLUE
-        elif v == 3:
-            game.board[r][c] = TileState.BLOCKED
-        else:
-            game.board[r][c] = TileState.EMPTY
-    # Turn
+        r, c = divmod(idx, LOGICAL_GRID_SIZE)
+        tile_value = state[idx]
+        game.board[r][c] = TILE_STATE_MAP.get(tile_value, TileState.EMPTY)
+
+    # Set current turn
     turn_v = state[100]
     game.current_turn = TileState.RED if turn_v == 1 else TileState.BLUE
-    # Scores (best-effort; browser recomputes anyway)
+
+    # Set scores (best-effort; browser recomputes anyway)
     red_score = state[101] if isinstance(state[101], (int, float)) and state[101] else 1
     blue_score = state[102] if isinstance(state[102], (int, float)) and state[102] else 1
     game.scores = {TileState.RED: int(red_score), TileState.BLUE: int(blue_score)}
-    # Placements
+
+    # Set tile placement count and game over status
     game.placed_tiles_count = int(state[103])
     game.game_over = game.placed_tiles_count >= game.TOTAL_TILES
+
     return game
 
 
@@ -142,65 +366,98 @@ class MoveResponse(BaseModel):
     action: int
     explanation: str | None = None
 
-def island_summary(game: TessellateGame) -> str:
+# ---------- Island Analysis ----------
+
+def get_neighbors(r: int, c: int) -> List[Tuple[int, int]]:
+    """Get valid neighboring positions for tessellate game logic."""
+    pow_neg1_r = 1 if r % 2 == 0 else -1
+    pow_neg1_c = 1 if c % 2 == 0 else -1
+    pow_neg1_r_plus_1 = 1 if (r + 1) % 2 == 0 else -1
+    pow_neg1_c_plus_1 = 1 if (c + 1) % 2 == 0 else -1
+    pow_neg1_r_c_1 = 1 if (r + c + 1) % 2 == 0 else -1
+
+    candidates = [
+        (r + pow_neg1_r, c + pow_neg1_c),
+        (r - 1, c - pow_neg1_r_c_1),
+        (r + 1, c + pow_neg1_r_c_1),
+        (r + pow_neg1_r_plus_1, c),
+        (r, c + pow_neg1_c_plus_1),
+    ]
+
+    return [(rr, cc) for rr, cc in candidates
+            if 0 <= rr < LOGICAL_GRID_SIZE and 0 <= cc < LOGICAL_GRID_SIZE]
+
+
+def find_connected_component(game: TessellateGame, start_r: int, start_c: int, visited: List[List[bool]]) -> int:
+    """Find size of connected component starting from given position."""
+    color = game.board[start_r][start_c]
+    stack = [(start_r, start_c)]
+    size = 0
+
+    while stack:
+        r, c = stack.pop()
+        if visited[r][c] or game.board[r][c] != color:
+            continue
+
+        visited[r][c] = True
+        size += 1
+
+        for nr, nc in get_neighbors(r, c):
+            if not visited[nr][nc] and game.board[nr][nc] == color:
+                stack.append((nr, nc))
+
+    return size
+
+
+def get_island_sizes(game: TessellateGame) -> Dict[TileState, List[int]]:
+    """Calculate island sizes for both colors."""
     sizes = {TileState.RED: [], TileState.BLUE: []}
-    visited = [[False for _ in range(game.LOGICAL_GRID_SIZE)] for _ in range(game.LOGICAL_GRID_SIZE)]
+    visited = [[False for _ in range(LOGICAL_GRID_SIZE)] for _ in range(LOGICAL_GRID_SIZE)]
 
-    def neighbors(r: int, c: int):
-        pow_neg1_r = 1 if r % 2 == 0 else -1
-        pow_neg1_c = 1 if c % 2 == 0 else -1
-        pow_neg1_r_plus_1 = 1 if (r + 1) % 2 == 0 else -1
-        pow_neg1_c_plus_1 = 1 if (c + 1) % 2 == 0 else -1
-        pow_neg1_r_c_1 = 1 if (r + c + 1) % 2 == 0 else -1
-        cand = [
-            (r + pow_neg1_r, c + pow_neg1_c),
-            (r - 1, c - pow_neg1_r_c_1),
-            (r + 1, c + pow_neg1_r_c_1),
-            (r + pow_neg1_r_plus_1, c),
-            (r, c + pow_neg1_c_plus_1),
-        ]
-        return [(rr, cc) for rr, cc in cand if 0 <= rr < game.LOGICAL_GRID_SIZE and 0 <= cc < game.LOGICAL_GRID_SIZE]
-
-    for r in range(game.LOGICAL_GRID_SIZE):
-        for c in range(game.LOGICAL_GRID_SIZE):
+    for r in range(LOGICAL_GRID_SIZE):
+        for c in range(LOGICAL_GRID_SIZE):
             color = game.board[r][c]
             if color in (TileState.RED, TileState.BLUE) and not visited[r][c]:
-                stack = [(r, c)]
-                size = 0
-                while stack:
-                    rr, cc = stack.pop()
-                    if not (0 <= rr < game.LOGICAL_GRID_SIZE and 0 <= cc < game.LOGICAL_GRID_SIZE):
-                        continue
-                    if visited[rr][cc] or game.board[rr][cc] != color:
-                        continue
-                    visited[rr][cc] = True
-                    size += 1
-                    for nr, nc in neighbors(rr, cc):
-                        if not visited[nr][nc] and game.board[nr][nc] == color:
-                            stack.append((nr, nc))
-                if size:
-                    sizes[color].append(size)
+                island_size = find_connected_component(game, r, c, visited)
+                if island_size > 0:
+                    sizes[color].append(island_size)
 
-    def fmt(arr):
-        if not arr:
-            return '–', 1
-        arr2 = sorted(arr, reverse=True)
-        prod = 1
-        for x in arr2:
-            prod *= x
-        return '×'.join(str(x) for x in arr2), prod
+    return sizes
 
-    red_str, red_prod = fmt(sizes[TileState.RED])
-    blue_str, blue_prod = fmt(sizes[TileState.BLUE])
-    return f"Islands — Red: [{red_str}] => {red_prod}; Blue: [{blue_str}] => {blue_prod}"
 
+def format_island_sizes(island_sizes: List[int]) -> Tuple[str, int]:
+    """Format island sizes as string and calculate product score."""
+    if not island_sizes:
+        return '–', 1
+
+    sorted_sizes = sorted(island_sizes, reverse=True)
+    product = 1
+    for size in sorted_sizes:
+        product *= size
+
+    return '×'.join(str(size) for size in sorted_sizes), product
+
+
+def island_summary(game: TessellateGame) -> str:
+    """Generate summary of island sizes and scores for both players."""
+    sizes = get_island_sizes(game)
+
+    red_str, red_score = format_island_sizes(sizes[TileState.RED])
+    blue_str, blue_score = format_island_sizes(sizes[TileState.BLUE])
+
+    return f"Islands — Red: [{red_str}] => {red_score}; Blue: [{blue_str}] => {blue_score}"
+
+
+# ---------- Prompt Building ----------
 
 def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List[int]) -> str:
+    """Build the prompt for the LLM to make a move."""
     # Borrow Env rendering to keep visuals consistent
     env.game = game
     board_str = env._render_board(full=False)
     turn_str = "RED" if game.current_turn == TileState.RED else "BLUE"
     moves_visual = valid_actions_visual(valid_actions, max_items=50)
+
     instructions = (
         "You are playing Tessellate. Place one triangular tile per turn.\n"
         "Respond in two labeled parts so we can show your thinking without private chain-of-thought.\n"
@@ -208,31 +465,27 @@ def build_prompt(env: TessellateTaEnv, game: TessellateGame, valid_actions: List
         "- Reasoning: a concise high-level rationale (1-2 lines).\n"
         "Valid row letters: A-J (logical grid), or A-E with UL/UR/LL/LR for the visual squares. Choose only empty (not blocked) positions.\n"
     )
+
     summary = island_summary(game)
-    msg = (
+    prompt = (
         f"{board_str}\n"
         f"{summary}\n"
         f"Turn: {turn_str}.\n"
         f"Valid moves (visual, up to 50): {moves_visual}\n\n"
         f"{instructions}"
     )
-    return msg
+    return prompt
 
 
 def create_app(model_name: str) -> FastAPI:
     app = FastAPI(title="Tessellate OpenAI GPT-5 Agent Server")
 
+    # Log model information for debugging
+    print(f"Initializing server with model: {model_name}")
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "https://tessellate-app-ytnku.ondigitalocean.app",
-            "https://mcembalest.github.io",
-            "http://localhost:8424",
-            "http://127.0.0.1:8424",
-            "http://localhost:8080",
-            "http://127.0.0.1:8080",
-            "null"
-        ],
+        allow_origins=CORS_ORIGINS,
         allow_origin_regex=r"https://.*\\.github\\.io$",
         allow_credentials=False,
         allow_methods=["*"],
@@ -241,57 +494,44 @@ def create_app(model_name: str) -> FastAPI:
 
     # OpenAI client
     client = OpenAI()
+    log = logging.getLogger("tessellate.openai")
+    if not log.handlers:
+        logging.basicConfig(level=logging.INFO)
     env = TessellateTaEnv()  # for rendering helpers only
 
-    def _reasoning_effort() -> str:
-        return os.environ.get("OPENAI_REASONING_EFFORT", "medium")
 
-    def _text_verbosity() -> str | None:
-        return os.environ.get("OPENAI_TEXT_VERBOSITY")
 
     @app.post("/move", response_model=MoveResponse)
     def move(req: MoveRequest):
         if not req.valid_actions:
-            raise HTTPException(status_code=400, detail="No valid actions provided")
+            raise HTTPException(status_code=400, detail=ERROR_NO_VALID_ACTIONS)
 
         try:
             game = state_to_game(req.state)
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Bad state: {e}")
+            raise HTTPException(status_code=400, detail=ERROR_BAD_STATE.format(e))
 
         prompt = build_prompt(env, game, req.valid_actions)
-
-        kwargs: dict = {
-            "model": model_name,
-            "input": prompt,
-            "reasoning": {"effort": _reasoning_effort()},
-        }
-        verbosity = _text_verbosity()
-        if verbosity:
-            kwargs["text"] = {"verbosity": verbosity}
+        config = get_openai_config()
+        kwargs = build_openai_request_kwargs(model_name, prompt, config)
 
         try:
             resp = client.responses.create(**kwargs)  # type: ignore[arg-type]
         except Exception as e:
-            raise HTTPException(status_code=502, detail=f"OpenAI error: {type(e).__name__}: {e}")
+            handle_openai_error(e, "/move", log)
 
-        # Best-effort to extract full text
-        explanation = None
-        try:
-            explanation = getattr(resp, "output_text", None) or str(resp)
-        except Exception:
-            explanation = None
+        explanation = extract_response_text(resp)
 
         # Parse the agent's choice
         r, c = parse_llm_move(explanation or "")
         action = None
         if r is not None and c is not None:
-            action = r * 10 + c
+            action = r * LOGICAL_GRID_SIZE + c
             if action not in req.valid_actions:
                 action = None
 
         if action is None:
-            raise HTTPException(status_code=422, detail="Could not parse a valid move from model output.")
+            raise HTTPException(status_code=422, detail=ERROR_PARSE_MOVE)
 
         return MoveResponse(action=action, explanation=(explanation or "").strip())
 
@@ -306,17 +546,15 @@ def create_app(model_name: str) -> FastAPI:
           data: {"type":"error","message":"..."}
         """
         if not req.valid_actions:
-            return PlainTextResponse("No valid actions provided", status_code=400)
+            return PlainTextResponse(ERROR_NO_VALID_ACTIONS, status_code=400)
 
         try:
             game = state_to_game(req.state)
         except Exception as e:
-            return PlainTextResponse(f"Bad state: {e}", status_code=400)
+            return PlainTextResponse(ERROR_BAD_STATE.format(e), status_code=400)
 
         base_prompt = build_prompt(env, game, req.valid_actions)
-
-        # Stream with up to 2 retries if the model returns an invalid move format
-        max_attempts = 2
+        config = get_openai_config()
 
         def event_stream() -> Generator[str, None, None]:
             import json as _json
@@ -324,18 +562,11 @@ def create_app(model_name: str) -> FastAPI:
             attempt = 0
             current_input = base_prompt
 
-            while attempt <= max_attempts:
+            while attempt <= MAX_RETRY_ATTEMPTS:
                 full_reasoning_parts: list[str] = []
                 full_content_parts: list[str] = []
 
-                stream_kwargs: dict = {
-                    "model": model_name,
-                    "input": current_input,
-                    "reasoning": {"effort": os.environ.get("OPENAI_REASONING_EFFORT", "medium")},
-                }
-                verbosity = os.environ.get("OPENAI_TEXT_VERBOSITY")
-                if verbosity:
-                    stream_kwargs["text"] = {"verbosity": verbosity}
+                stream_kwargs = build_openai_request_kwargs(model_name, current_input, config)
 
                 try:
                     with client.responses.stream(**stream_kwargs) as stream:  # type: ignore[arg-type]
@@ -358,44 +589,27 @@ def create_app(model_name: str) -> FastAPI:
                                 yield f"data: {_json.dumps({"type": "error", "message": str(message)})}\n\n"
                             elif t == "response.completed":
                                 # Finalize
-                                try:
-                                    final_resp = stream.get_final_response()
-                                    final_text = getattr(final_resp, "output_text", None) or ("".join(full_reasoning_parts) + "\n" + "".join(full_content_parts))
-                                except Exception:
-                                    final_text = ("".join(full_reasoning_parts) + "\n" + "".join(full_content_parts))
+                                final_text = extract_final_text(stream, full_reasoning_parts, full_content_parts)
+                                action = parse_and_validate_move(final_text, req.valid_actions)
 
-                                r_c = parse_llm_move(final_text)
-                                action = None
-                                if r_c[0] is not None and r_c[1] is not None:
-                                    action = r_c[0]*10 + r_c[1]
-                                    if action not in req.valid_actions:
-                                        action = None
                                 if action is None:
                                     attempt += 1
-                                    if attempt > max_attempts:
-                                        yield f"data: {_json.dumps({"type": "error", "message": "Could not parse a valid move from model output after retries."})}\n\n"
+                                    if attempt > MAX_RETRY_ATTEMPTS:
+                                        yield f"data: {_json.dumps({"type": "error", "message": ERROR_PARSE_MOVE_RETRIES})}\n\n"
                                         return
-                                    available = ", ".join(str(a) for a in req.valid_actions[:100])
-                                    corrective = (
-                                        "Your previous reply did not specify a valid coordinate.\n"
-                                        "Only answer with ONE coordinate using either [A0] or A0-UR syntax, and it must map to one of these valid flat IDs: "
-                                        f"{available}.\n"
-                                        "Do not include explanations before the coordinate; you may include a short Reasoning after the Move line.\n"
-                                        "Format strictly as:\nMove: [A0]\nReasoning: <one line>\n"
-                                    )
-                                    # Retry with corrective appended
-                                    current_input = base_prompt + "\n\n" + corrective
+                                    current_input = build_corrective_prompt(base_prompt, req.valid_actions)
                                     break  # break inner for; the while loop will start next attempt
                                 else:
                                     final_event = {"type": "final", "action": action, "full": final_text}
                                     yield f"data: {_json.dumps(final_event)}\n\n"
                                     return
                 except Exception as e:
+                    handle_openai_error(e, "/move_stream", log)
                     yield f"data: {_json.dumps({"type": "error", "message": f"{type(e).__name__}: {e}"})}\n\n"
                     return
 
             # exhausted attempts without a final action
-            yield f"data: {{\"type\": \"error\", \"message\": \"Stream ended without a final action.\"}}\n\n"
+            yield f"data: {{\"type\": \"error\", \"message\": \"{ERROR_STREAM_ENDED}\"}}\n\n"
 
         return StreamingResponse(
             event_stream(),
@@ -409,17 +623,36 @@ def create_app(model_name: str) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"ok": True, "model": model_name}
+        has_key = bool(os.environ.get("OPENAI_API_KEY"))
+        return {"ok": True, "model": model_name, "openai_key": has_key}
 
     return app
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default=os.environ.get("TESSELLATE_AGENT_MODEL", "openai/gpt-5-mini"))
-    parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=8080)
+    """Main entry point for the Tessellate OpenAI server."""
+    parser = argparse.ArgumentParser(description="Run Tessellate OpenAI GPT-5 Agent Server")
+    parser.add_argument(
+        "--model",
+        default=os.environ.get(ENV_MODEL, DEFAULT_MODEL),
+        help=f"OpenAI model name (default: {DEFAULT_MODEL})"
+    )
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind server to"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Port to bind server to"
+    )
+
     args = parser.parse_args()
+
+    print(f"Starting Tessellate OpenAI server with model: {args.model}")
+    print(f"Server will be available at http://{args.host}:{args.port}")
 
     app = create_app(model_name=args.model)
     uvicorn.run(app, host=args.host, port=args.port)
@@ -427,4 +660,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

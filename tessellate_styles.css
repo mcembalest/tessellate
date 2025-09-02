@@ -346,6 +346,10 @@ footer {
     white-space: pre-wrap;
 }
 
+#view-panel {
+    font-size: 8px;
+}
+
 .sidebar-title {
     font-weight: 200;
     /* margin-bottom: 10px; */

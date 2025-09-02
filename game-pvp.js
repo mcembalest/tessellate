@@ -1176,8 +1176,8 @@ async function maybeMakeAIMove() {
             const streamEl = document.getElementById('ai-stream');
             if (expEl && streamEl) {
                 expEl.style.display = 'block';
-                const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
-                streamEl.textContent += `\n\n— ${colorLabel} move applied.`;
+                // const colorLabel = (aiSide === RED) ? 'Red' : 'Blue';
+                // streamEl.textContent += `\n\n— ${colorLabel} move applied.`;
                 if (aiAutoScroll) expEl.scrollTop = expEl.scrollHeight;
             }
         }
