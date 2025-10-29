@@ -16,7 +16,7 @@ Tessellate is played on a 10×10 grid where:
 
 If you use Tessellate in your research, please cite:
 ```bibtex
-@software{tessellate2024,
+@software{tessellate2025,
   title = {Tessellate},
   author = {Cembalest, Max},
   year = {2025},
